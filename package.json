@@ -1,6 +1,6 @@
 {
   "name": "dsh-overlay",
-  "version": "0.1.34",
+  "version": "0.1.35",
   "description": "DSH 插件控制台悬浮窗：随 dsh 启动，两列罗列全部插件+中文名，独立开关，官方判定弹窗，折叠小条，设置/状态诊断/回收站。",
   "main": "main.js",
   "allowScripts": [
@@ -9,7 +9,10 @@
   "scripts": {
     "start": "electron ."
   },
-  "author": "LuoqiUile",
+  "author": {
+    "name": "LuoqiUile",
+    "email": "luoq45697@gmail.com"
+  },
   "license": "MIT",
   "devDependencies": {
     "electron": "^44.4.5",
