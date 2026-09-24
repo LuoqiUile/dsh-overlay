@@ -7,6 +7,10 @@ const http = require('http');
 
 const DSH_ORIGIN = 'http://127.0.0.1:3080';
 const POLL_MS = 3000;
+
+// 便携版（portable）会把 userData 重定向到随机 temp 解包目录，设置/崩溃日志随 temp 清理丢失——
+// 固定到 %LOCALAPPDATA%\DSH插件控制台，dev/安装版/便携版行为一致（须在 app ready 前设置）
+try { app.setPath('userData', path.join(process.env.LOCALAPPDATA || app.getPath('appData'), 'DSH插件控制台')); } catch (_) {}
 /* 背景自适应（桌面采样）已按用户要求关闭 */
 
 // ---------- 跨设备路径探测：不依赖固定用户名 / 固定安装位置 ----------
@@ -190,7 +194,14 @@ function ensureDsh() {
 // ---------- 采集状态（列表/激活/启停） ----------
 async function fetchState() {
   const res = await dshRequest('/dsh-market/installed', 'GET');
-  if (!res.ok || !res.json) return { connected: false, reason: res.status === 0 ? 'dsh 未运行' : 'HTTP ' + res.status };
+  if (!res.ok || !res.json) {
+    // 状态语义：status=0 → 端口不通（dsh 未运行）；404/401 → 端口通（dsh 在跑）但接口缺失/需鉴权
+    const st = res.status;
+    if (st === 0) return { connected: false, dshUp: false, marketOk: false, reason: 'dsh 未运行（3080 连接被拒/超时）' };
+    if (st === 404) return { connected: false, dshUp: true, marketOk: false, reason: 'dsh 运行中，但缺少 dshmarket 插件（/dsh-market 接口 404，请安装 dshmarket）' };
+    if (st === 401) return { connected: false, dshUp: true, marketOk: false, reason: 'dsh 运行中，接口需登录 token（HTTP 401）' };
+    return { connected: false, dshUp: true, marketOk: false, reason: '接口错误（HTTP ' + st + '）' };
+  }
   const j = res.json;
   const present = j.present || [];
   const activation = j.activation || {};
@@ -210,7 +221,7 @@ async function fetchState() {
       togglable: a.state === 'live' || a.state === 'disabled' || a.state === 'restart' || a.state === 'inert',
     };
   });
-  return { connected: true, plugins, profile: j.profile, liveCount: (j.live || []).length, ts: Date.now() };
+  return { connected: true, dshUp: true, marketOk: true, plugins, profile: j.profile, liveCount: (j.live || []).length, ts: Date.now() };
 }
 
 async function poll() {

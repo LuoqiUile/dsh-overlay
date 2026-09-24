@@ -109,6 +109,15 @@ dsh plugin --profile web add "file:$src\launcher"
 > 触发机制：launcher 不再依赖 cordis 生命周期事件（cordis 4 已移除 `ready`），改为**轮询 127.0.0.1:3080 端口就绪即拉起**（约 1.5s 间隔，60s 上限），dsh web 一就绪悬浮窗立即弹出，无 8 秒延迟。
 > 若放在其他位置，设环境变量：`[Environment]::SetEnvironmentVariable('DSH_OVERLAY_EXE','<悬浮窗exe路径>','User')`（新设变量需**重开终端**再启动 dsh；launcher 已有注册表回退，旧终端也可用）
 
+## 步骤 6b：安装前置依赖 dshmarket（悬浮窗的 /dsh-market 接口依赖它）
+
+```powershell
+dsh plugin --profile web add dshmarket
+```
+
+> ⚠️ **必装**：悬浮窗的插件罗列/开关/重启走 `/dsh-market/*` 接口，该路由**由 dshmarket 插件提供**（不是 dsh 核心）。不装则悬浮窗顶栏显示「dsh 运行中，但缺少 dshmarket 插件（/dsh-market 接口 404，请安装 dshmarket）」。
+> 验证：`dsh plugin list --profile web` 中出现 `dshmarket`；或启动 dsh 后访问 `http://127.0.0.1:3080/dsh-market/installed`（返回 JSON 即就绪）。
+
 ## 步骤 7：整体验证
 
 ```powershell
@@ -134,6 +143,7 @@ dsh web
 | `dsh web` EADDRINUSE | 说明旧 dsh 在跑：`Get-NetTCPConnection -LocalPort 3080 -State Listen` 找到 PID → `taskkill /PID <PID> /T /F` → 重启 |
 | 悬浮窗未自动拉起 | 确认步骤 6 成功（`dsh plugin list --profile web`）且 launcher 版本=1.1.1；读日志 `Get-Content "$env:LOCALAPPDATA\DSH插件控制台\launcher.log" -Encoding UTF8`（`已拉起…`=成功 / `未找到悬浮窗程序`=路径问题 / `60s 内 web 服务未就绪`=dsh 未起来）；确认 `DSH_OVERLAY_EXE` 或安装目录存在（launcher 已有注册表回退，无需担心旧终端）；仍失败可临时直接运行悬浮窗 exe 排查 |
 | 版本不满足报错 | 按错误提示升级 dsh：`npm install -g @deepseek-ai/dsh@latest` |
+| 悬浮窗显示「缺少 dshmarket 插件」 | 执行 `dsh plugin --profile web add dshmarket` 后重启 dsh web |
 
 ## 可选：插件与 API Key
 

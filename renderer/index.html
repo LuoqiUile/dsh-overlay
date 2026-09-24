@@ -548,6 +548,8 @@ function render(){
   document.getElementById('stLive').style.display = state.connected?'inline-flex':'none';
   dot.className='tb-dot'+(state.connected?' live':'');
   if(!state.connected){
+    // 顶栏状态标签显示真实原因（不再一律「dsh 未运行」）：404=缺 dshmarket / 401=需 token / 0=端口不通
+    document.getElementById('stText').innerHTML='<span class="pulse" style="background:var(--warn)"></span>'+(state.reason||'dsh 未运行');
     document.getElementById('ver').textContent='';
     document.getElementById('countBar').textContent='';
     document.getElementById('footCount').textContent='—';
