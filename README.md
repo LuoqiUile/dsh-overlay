@@ -72,13 +72,32 @@ npm install
 npm start          # 或双击 启动悬浮窗.cmd
 ```
 
----
-
-## 🚀 快速开始
+### 运行前提（任意方式安装后）
 
 1. **确保 dsh 已安装并运行**：终端执行 `dsh web`（保持运行，端口 3080）
 2. **启动悬浮窗**：双击桌面「DSH 插件控制台」或运行便携版
 3. 悬浮窗自动连接 dsh，两列显示全部插件
+
+---
+
+## 🚀 快速开始
+
+### 方式 0：智能体一键安装（推荐，无需手动步骤）
+
+把这段话发给任意具备 Shell 能力的 AI 智能体（豆包 / Claude 等），自动完成全部安装配置：
+
+```
+请在我的电脑上自动安装「DSH 插件控制台」。
+先读取安装指南（任选可达的链接）：
+- https://raw.githubusercontent.com/LuoqiUile/dsh-overlay/master/INSTALL-AGENT.md
+- 或镜像：https://gh-proxy.com/https://raw.githubusercontent.com/LuoqiUile/dsh-overlay/master/INSTALL-AGENT.md
+严格按该文件步骤执行，每步验证结果；需要安装授权时向用户确认；完成后汇报结果。
+```
+
+> 智能体会自动：检测/安装 Node → dsh → GitHub 加速 → 下载悬浮窗便携版 → 装 launcher 钩子 → 整体验证。
+> 也可直接运行自动脚本：`powershell -ExecutionPolicy Bypass -File install/install-dsh-overlay.ps1`
+
+### 方式 1：安装包（推荐正式使用）
 
 > 悬浮窗依赖 dsh 的本地接口（`127.0.0.1:3080`）与登录 token 日志；**dsh 未运行时显示「未连接」、插件列表为空**。
 

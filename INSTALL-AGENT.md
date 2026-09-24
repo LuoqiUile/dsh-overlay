@@ -6,7 +6,9 @@
 
 ```
 请在我的电脑上自动安装「DSH 插件控制台」。
-先读取 https://raw.githubusercontent.com/LuoqiUile/dsh-overlay/master/INSTALL-AGENT.md
+先读取安装指南（任选可达的链接）：
+- https://raw.githubusercontent.com/LuoqiUile/dsh-overlay/master/INSTALL-AGENT.md
+- 或镜像：https://gh-proxy.com/https://raw.githubusercontent.com/LuoqiUile/dsh-overlay/master/INSTALL-AGENT.md
 严格按该文件步骤执行，每步验证结果；需要安装授权时向用户确认；完成后汇报结果。
 ```
 
