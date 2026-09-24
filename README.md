@@ -97,6 +97,16 @@ npm start          # 或双击 启动悬浮窗.cmd
 > 智能体会自动：检测/安装 Node → dsh → GitHub 加速 → 下载悬浮窗便携版 → 装 launcher 钩子 → 整体验证。
 > 也可直接运行自动脚本：`powershell -ExecutionPolicy Bypass -File install/install-dsh-overlay.ps1`
 
+**卸载**（发这段话给智能体即可自动移除）：
+
+```
+请卸载我电脑上的「DSH 插件控制台」。
+先读取 https://raw.githubusercontent.com/LuoqiUile/dsh-overlay/master/INSTALL-AGENT.md
+按其中「卸载」章节的步骤执行，需要删除授权时向用户确认，完成后汇报结果。
+```
+
+> 也可直接运行：`powershell -ExecutionPolicy Bypass -File install/install-dsh-overlay.ps1 -Uninstall`
+
 ### 方式 1：安装包（推荐正式使用）
 
 > 悬浮窗依赖 dsh 的本地接口（`127.0.0.1:3080`）与登录 token 日志；**dsh 未运行时显示「未连接」、插件列表为空**。
