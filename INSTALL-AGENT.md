@@ -83,12 +83,12 @@ git config --global url."https://gh-proxy.com/https://github.com/".insteadOf "ht
 ```powershell
 $dest = Join-Path $env:LOCALAPPDATA 'DSH插件控制台'
 New-Item -ItemType Directory -Force $dest | Out-Null
-Invoke-WebRequest -Uri 'https://github.com/LuoqiUile/dsh-overlay/releases/download/v0.1.35/DSH.-0.1.35-x64-portable.exe' -OutFile (Join-Path $dest 'DSH插件控制台.exe')
+Invoke-WebRequest -Uri 'https://github.com/LuoqiUile/dsh-overlay/releases/download/v0.1.37/DSH.-0.1.37-x64-portable.exe' -OutFile (Join-Path $dest 'DSH插件控制台.exe')
 ```
 
-> 资产名注意：GitHub Release 将中文名显示为 `DSH.-0.1.35-x64-portable.exe`（真实资产名，照此填写才不 404；若装新版，请用 releases/latest 对应资产名 `DSH.-<版本>-x64-portable.exe`）。
+> 资产名注意：GitHub Release 将中文名显示为 `DSH.-0.1.37-x64-portable.exe`（真实资产名，照此填写才不 404；若装新版，请用 releases/latest 对应资产名 `DSH.-<版本>-x64-portable.exe`）。
 > 若网络无法直连 GitHub Release（国内常见），改用镜像前缀：
-> `https://gh-proxy.com/https://github.com/LuoqiUile/dsh-overlay/releases/download/v0.1.35/DSH.-0.1.35-x64-portable.exe`
+> `https://gh-proxy.com/https://github.com/LuoqiUile/dsh-overlay/releases/download/v0.1.37/DSH.-0.1.37-x64-portable.exe`
 > 下载后可选校验完整性：`Get-FileHash <路径> -Algorithm SHA256` 与 Release 页官方 digest 比对。
 
 ## 步骤 6：安装自动拉起钩子（launcher）

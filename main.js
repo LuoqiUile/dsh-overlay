@@ -346,10 +346,22 @@ function createWindow() {
   win.setAlwaysOnTop(true, 'floating');
   win.loadFile(require('path').join(__dirname, 'renderer', 'index.html'));
 
-  // 折叠小条模式下记录/恢复窗口尺寸
+  // 折叠小条模式下记录/恢复窗口尺寸（最小化/恢复时 getSize() 可能返回异常，排除）
   win.on('resize', () => {
-    if (!collapsed) normalSize = win.getSize();
+    if (!collapsed && !win.isMinimized()) normalSize = win.getSize();
   });
+  // 任务栏唤回（最小化恢复）：强制把窗口尺寸同步回折叠/展开的权威状态，并广播折叠态，
+  // 避免 Windows 恢复时篡改尺寸、渲染层 collapsedMode 与主进程脱同步导致「展开失效」
+  const syncWindow = () => {
+    if (!win || win.isDestroyed()) return;
+    const [w, h] = normalSize || [440, 640];
+    const b = win.getBounds();
+    if (collapsed) win.setBounds({ x: b.x, y: b.y, width: w, height: 42 });
+    else win.setBounds({ x: b.x, y: b.y, width: w, height: h });
+    try { win.webContents.send('collapsed', collapsed); } catch (_) {}
+  };
+  win.on('restore', syncWindow);
+  win.on('show', syncWindow);
   // 关闭窗口 = 折叠成顶部小条（不缩回任务栏/托盘）
   win.on('close', (e) => {
     if (!app.isQuiting) { e.preventDefault(); setCollapsed(true); }
@@ -361,7 +373,7 @@ function setCollapsed(on) {
   if (!win || win.isDestroyed()) return;
   collapsed = !!on;
   if (collapsed) {
-    normalSize = win.getSize();
+    if (!win.isMinimized()) normalSize = win.getSize();  // 最小化时尺寸不可信
     const [w] = normalSize;
     const b = win.getBounds();
     win.setBounds({ x: b.x, y: b.y, width: w, height: 42 });
