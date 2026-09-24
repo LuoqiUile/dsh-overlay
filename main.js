@@ -117,7 +117,7 @@ function dshRequest(path, method, bodyObj) {
   return new Promise((resolve) => {
     readToken();
     const url = new URL(DSH_ORIGIN + path);
-    url.searchParams.set('token', token);
+    if (token) url.searchParams.set('token', token);   // /dsh-market 免 token；有 token 更稳
     const payload = bodyObj ? JSON.stringify(bodyObj) : null;
     const req = http.request(url, {
       method: method || 'GET',
@@ -140,6 +140,50 @@ function dshRequest(path, method, bodyObj) {
     req.on('timeout', () => { req.destroy(); resolve({ ok: false, status: 0, json: null, raw: '' }); });
     if (payload) req.write(payload);
     req.end();
+  });
+}
+
+// ---------- 自动启动 dsh web 并捕获 token（兼容不写日志文件的 dsh 版本） ----------
+let startingDsh = false;
+let lastEnsureTs = 0;
+let tokenSource = '（未获取）';
+function ensureDsh() {
+  if (startingDsh) return;
+  if (Date.now() - lastEnsureTs < 15000) return;   // 节流：15s 一次
+  lastEnsureTs = Date.now();
+  const { spawn } = require('node:child_process');
+  exec('netstat -ano -p tcp | findstr :3080 | findstr LISTENING', { timeout: 4000, windowsHide: true }, (e, so) => {
+    if ((so || '').trim()) { tokenSource = token ? '日志' : '（日志无 token）'; return; }  // 已监听：交给 readToken
+    // 3080 未监听：由悬浮窗启动 dsh web，并从输出中捕获 token
+    startingDsh = true;
+    tokenSource = '（启动捕获中…）';
+    let buf = '';
+    let got = false;
+    const tryGrab = () => {
+      if (got) return;
+      const m = buf.match(/[?&]token=([A-Za-z0-9_-]+)/);
+      if (m && m[1]) {
+        if (m[1] !== token) token = m[1];
+        got = true;
+        tokenSource = 'dsh 输出捕获';
+        try { console.log('[dsh-overlay] 已从 dsh 输出捕获 token'); } catch (_) {}
+      }
+    };
+    const child = spawn('cmd.exe', ['/c', 'dsh web'], { detached: true, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    child.unref();
+    child.stdout.on('data', (c) => {
+      buf += c.toString('utf8');
+      if (buf.length > 100000) buf = buf.slice(-50000);
+      tryGrab();
+    });
+    child.stderr.on('data', (c) => {
+      buf += c.toString('utf8');
+      if (buf.length > 100000) buf = buf.slice(-50000);
+      tryGrab();
+    });
+    child.on('error', () => { startingDsh = false; });
+    child.on('exit', () => { startingDsh = false; });
+    setTimeout(() => { if (!got) tokenSource = '（捕获失败：dsh 输出无 token）'; startingDsh = false; }, 20000);
   });
 }
 
@@ -188,6 +232,8 @@ async function poll() {
       lastPresent = present;
     } else {
       lastPresent = null;
+      // dsh 未连接：尝试自动启动（3080 未监听时由悬浮窗拉起 dsh 并捕获 token）
+      try { ensureDsh(); } catch (_) {}
     }
     wasConnected = s.connected;
     win.webContents.send('state', s);
@@ -221,7 +267,7 @@ function readLatestLogTail() {
   });
 }
 ipcMain.handle('get-diag', async () => {
-  const out = { ts: Date.now(), overlayVersion, token: token ? token.slice(0, 12) + '…' : '（未读取）' };
+  const out = { ts: Date.now(), overlayVersion, token: token ? token.slice(0, 12) + '…' : '（未读取）', tokenSource };
   out.dshVersion = await new Promise((resolve) => {
     exec('dsh --version', { timeout: 8000, windowsHide: true }, (e, so, se) => {
       const v = (so || '').trim().split(/\r?\n/)[0];
