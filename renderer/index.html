@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSH 插件控制台</title>
+<style>
+  /* ===== 双主题变量：暗背景（默认）/ 亮背景（body.light-bg 自动切换） =====
+     --acc / --acc-deep 由设置面板动态覆盖（整体颜色，含开关/状态灯/强调） */
+  :root{
+    --txt:#e6edf5; --txt2:#b8c8d6; --txt3:#90a5b7;
+    --acc:#e8b65b; --acc-deep:#b07d1f;
+    --on:#57c98d; --off:#4a5766; --warn:#e0855b;
+    --card:rgba(255,255,255,.06); --card-deep:rgba(0,0,0,.16);
+    --tip-bg:rgba(10,15,22,.97); --tip-txt:#9db0c0;
+    --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.20);
+    --bar-rgb:0,0,0; --card-rgb:0,0,0; --card-deep-rgb:0,0,0;
+    --mono:"Cascadia Code","JetBrains Mono","Consolas","Microsoft YaHei UI",monospace;
+    --sans:"Segoe UI","Microsoft YaHei UI","PingFang SC",system-ui,sans-serif;
+    /* 无极字体缩放 */
+    --scale:1;
+    --f-tb:calc(12.5px * var(--scale)); --f-pkg:calc(10px * var(--scale));
+    --f-cn:calc(12.5px * var(--scale)); --f-st:calc(11.5px * var(--scale));
+    --f-fn:calc(11px * var(--scale));   --f-tip:calc(10.5px * var(--scale));
+    --f-ft:calc(11px * var(--scale));   --f-se:calc(12px * var(--scale));
+  }
+  body.light-bg{
+    --txt:#16202b; --txt2:#263747; --txt3:#4a5e71;
+    --off:#b6c2cd; --warn:#c96f3e;
+    --card:rgba(0,0,0,.05); --card-deep:rgba(255,255,255,.22);
+    --tip-bg:rgba(255,255,255,.97); --tip-txt:#3e4d5d;
+    --line:rgba(0,0,0,.09); --line2:rgba(0,0,0,.18);
+    --bar-rgb:255,255,255; --card-rgb:255,255,255; --card-deep-rgb:255,255,255;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{font-family:var(--sans);color:var(--txt);overflow:hidden;user-select:none;background:transparent}
+
+  .win{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;
+       border:1px solid var(--line2);border-radius:14px;transition:background .4s}
+
+  /* 背景层：固定深色/浅色渐变（背景颜色自适应已关闭），整体透明度随滑块 */
+  .bg-grid{position:absolute;inset:-14px;z-index:0;border-radius:18px;
+           background:linear-gradient(165deg,rgba(16,20,28,.94),rgba(25,30,40,.96));
+           opacity:var(--bg-opacity,1);transition:opacity .25s}
+  body.light-bg .bg-grid{background:linear-gradient(165deg,rgba(244,246,250,.96),rgba(231,235,241,.94))}
+
+  .titlebar{display:flex;align-items:center;gap:8px;padding:11px 12px;flex:0 0 auto;min-height:42px;
+            border-bottom:1px solid var(--line);-webkit-app-region:drag;position:relative;z-index:30;
+            background:rgba(var(--bar-rgb), var(--bg-opacity,1))}
+    .tb-dot{width:9px;height:9px;border-radius:50%;background:var(--off);flex:0 0 auto;transition:background .3s}
+    .tb-dot.live{background:var(--acc);box-shadow:0 0 10px rgba(232,182,91,.65)}
+    .tb-name{font-size:var(--f-tb);font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .tb-ver{font-size:var(--f-pkg);color:var(--txt3);font-family:var(--mono)}
+    .tb-btn{width:24px;height:24px;display:grid;place-items:center;border-radius:6px;color:var(--txt2);
+            cursor:pointer;background:transparent;border:none;font:inherit;-webkit-app-region:no-drag}
+    .tb-btn:hover{background:rgba(var(--bar-rgb), calc(var(--bg-opacity,1) + 0.08));color:var(--txt)}
+    .tb-btn svg{width:14px;height:14px}
+    .tb-btn.tb-back{width:auto;height:auto;padding:4px 14px;border:1px solid var(--line2);border-radius:9px;font-size:var(--f-fn);font-weight:500;color:var(--txt2)}
+    .tb-btn.tb-back:hover{border-color:var(--acc);color:var(--acc);background:rgba(var(--card-rgb),.3)}
+    .tb-btn.pin.on{color:var(--acc)}
+    .tb-btn.settings.on{color:var(--acc);background:var(--bar)}
+
+  .statusbar{display:flex;align-items:center;gap:10px;padding:7px 14px;border-bottom:1px solid var(--line);
+             font-size:var(--f-st);color:var(--txt2);flex:0 0 auto;min-height:32px;position:relative;z-index:2;
+             background:rgba(var(--bar-rgb), var(--bg-opacity,1))}
+    .st-live{color:var(--acc);font-family:var(--mono);font-size:var(--f-pkg);display:inline-flex;align-items:center;gap:5px}
+    .st-dead{color:var(--warn);font-family:var(--mono);font-size:var(--f-pkg);display:inline-flex;align-items:center;gap:5px}
+    .pulse{width:7px;height:7px;border-radius:50%;background:var(--acc);animation:pulse 1.8s infinite}
+    @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(232,182,91,.5)}50%{opacity:.55;box-shadow:0 0 0 5px rgba(232,182,91,0)}}
+    .st-sep{color:var(--line2)}
+    .st-right{margin-left:auto;color:var(--txt3);font-family:var(--mono);font-size:var(--f-pkg);white-space:nowrap}
+
+  .cols{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px;overflow:hidden;position:relative;z-index:2}
+    .col{display:flex;flex-direction:column;gap:8px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+    .col::-webkit-scrollbar{width:5px}
+    .col::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px}
+
+  .pc{background:rgba(var(--card-rgb), var(--bg-opacity,1));border:1px solid var(--line);border-radius:10px;overflow:visible;flex:0 0 auto;position:relative}
+    .pc:hover{border-color:var(--line2)}
+    .pc.open{border-color:var(--line2)}
+    .pc.off .cn{opacity:.55}
+    .pc-head{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer}
+    .pc-arrow{width:14px;height:14px;color:var(--txt2);flex:0 0 auto;transition:transform .18s;display:grid;place-items:center}
+    .pc-arrow svg{width:11px;height:11px}
+    .pc.open .pc-arrow{transform:rotate(90deg);color:var(--acc)}
+    .pc-txt{flex:1;min-width:0}
+    .pc .pkg{font-family:var(--mono);font-size:var(--f-pkg);color:var(--txt2);line-height:1.25;word-break:break-all}
+    .pc .cn{font-size:var(--f-cn);font-weight:600;color:var(--txt);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .sw{width:30px;height:17px;border-radius:9px;background:var(--off);cursor:pointer;position:relative;
+        flex:0 0 auto;transition:background .18s;-webkit-app-region:no-drag}
+    .sw::after{content:"";position:absolute;left:2px;top:2px;width:13px;height:13px;border-radius:50%;
+        background:#9fb0bf;transition:transform .18s,background .18s}
+    .sw.on{background:var(--acc)}
+    .sw.on::after{transform:translateX(13px);background:#fff8ec}
+    .sw.busy{opacity:.45;pointer-events:none}
+    .pc-body{display:none;border-top:1px solid var(--line);padding:7px 10px 9px;background:rgba(var(--card-deep-rgb), var(--bg-opacity,1));border-radius:0 0 10px 10px}
+    .pc.open .pc-body{display:block}
+    .fn{display:flex;align-items:center;gap:7px;font-size:var(--f-fn);color:var(--txt2);padding:3px 0;line-height:1.4}
+    .fn-x{cursor:pointer;border-radius:6px;padding:3px 4px;margin:0 -4px}
+    .fn-x:hover{background:rgba(var(--card-rgb),.28)}
+    .fn-arr{width:11px;height:11px;flex:0 0 auto;color:var(--txt2);transition:transform .15s;display:inline-grid;place-items:center}
+    .fn.open .fn-arr{transform:rotate(90deg);color:var(--acc)}
+    .fn-panel{display:none;margin:4px 0 6px 15px;padding:8px 10px;border:1px solid var(--line2);border-radius:8px;background:rgba(var(--card-deep-rgb), calc(var(--bg-opacity,1) * 1.2))}
+    .fn.open + .fn-panel{display:block}
+    .th-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px dashed var(--line)}
+    .th-row:last-child{border-bottom:none}
+    .th-name{flex:1;font-size:var(--f-fn);color:var(--txt)}
+    .th-state{font-size:var(--f-pkg);color:var(--acc);font-weight:600}
+    .th-btn{font-size:var(--f-pkg);padding:3px 10px;border:1px solid var(--acc);color:var(--acc);border-radius:6px;cursor:pointer;background:transparent;transition:background .15s}
+    .th-btn:hover{background:var(--acc);color:#fff}
+    .fn-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+    .fn-act button{border:1px solid var(--line2);color:var(--txt2);background:rgba(var(--card-rgb),.3);border-radius:6px;padding:4px 10px;font-size:var(--f-pkg);cursor:pointer;transition:border-color .15s,color .15s}
+    .fn-act button:hover{border-color:var(--acc);color:var(--acc)}
+    .upd-line{font-size:var(--f-pkg);color:var(--txt2);margin-top:4px;line-height:1.5;word-break:break-all}
+    .fn::before{content:"";width:5px;height:5px;border-radius:1.5px;background:var(--acc);flex:0 0 auto}
+    .fn .fn-note{margin-left:auto;font-size:var(--f-pkg);color:var(--txt3);font-family:var(--mono)}
+    .fnspec{font-family:var(--mono);font-size:var(--f-pkg);color:var(--txt3);word-break:break-all;margin-top:2px}
+    .pc-del{margin-top:8px;padding:6px 0;border:1px solid rgba(244,99,99,.35);border-radius:8px;font-size:var(--f-fn);color:#f46666;text-align:center;cursor:pointer;transition:background .15s;background:rgba(244,99,99,.06)}
+    .pc-del:hover{background:rgba(244,99,99,.16)}
+
+  .pc-tip{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:20;
+          background:var(--tip-bg);border:1px solid var(--line2);border-radius:9px;
+          padding:8px 10px;opacity:0;pointer-events:none;transition:opacity .14s;
+          box-shadow:0 8px 24px rgba(0,0,0,.35)}
+    .pc:hover .pc-tip{opacity:1}
+    .tip-title{font-size:var(--f-pkg);font-weight:600;color:var(--acc);font-family:var(--mono);word-break:break-all}
+    .tip-cn{font-size:var(--f-pkg);color:var(--txt3);margin-top:1px}
+    .tip-body{font-size:var(--f-tip);color:var(--tip-txt);line-height:1.5;margin-top:3px}
+
+  .foot{display:flex;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid var(--line);
+        font-size:var(--f-ft);color:var(--txt2);flex:0 0 auto;min-height:34px;position:relative;z-index:2;
+        background:rgba(var(--bar-rgb), var(--bg-opacity,1))}
+    .f-num{font-family:var(--mono);color:var(--acc);font-size:var(--f-ft)}
+    .f-note{margin-left:auto;font-size:var(--f-pkg);color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .foot-btn{flex:0 0 auto;border:1px solid var(--line2);border-radius:7px;padding:3px 10px;margin-left:8px;font:inherit;font-size:var(--f-ft);color:var(--acc);cursor:pointer;background:transparent;transition:background .2s}
+    .foot-btn:hover{background:rgba(var(--bar-rgb),.14)}
+    .foot-btn:disabled{opacity:.5;cursor:default}
+
+  .resize-handle{position:absolute;right:0;bottom:0;width:16px;height:16px;z-index:40;pointer-events:none}
+    .resize-handle::before{content:"";position:absolute;right:3px;bottom:3px;border-right:2px solid var(--line2);border-bottom:2px solid var(--line2);width:8px;height:8px}
+
+  /* ===== 设置面板（半透明，调节时可透见主界面同步变化） ===== */
+  .settings-panel{position:absolute;top:0;left:0;right:0;bottom:0;z-index:50;display:none;
+                  background:rgba(var(--bar-rgb), var(--bg-opacity,1));backdrop-filter:blur(10px);border-radius:14px;flex-direction:column}
+    .settings-panel.open{display:flex}
+    .sp-head{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line)}
+    .sp-title{font-size:var(--f-cn);font-weight:600;flex:1}
+    .sp-body{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:16px}
+    .sp-row{display:flex;flex-direction:column;gap:7px}
+    .sp-label{font-size:var(--f-fn);color:var(--txt2);display:flex;align-items:center;gap:8px}
+    .sp-val{font-family:var(--mono);font-size:var(--f-pkg);color:var(--acc);margin-left:auto}
+    .sp-swatches{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .swatch{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex:0 0 auto;transition:transform .12s}
+    .swatch:hover{transform:scale(1.12)}
+    .swatch.on{border-color:var(--txt);box-shadow:0 0 0 2px var(--tip-bg)}
+    .swatch-custom{display:flex;align-items:center;gap:6px;font-size:var(--f-pkg);color:var(--txt3)}
+      .swatch-custom input[type=color]{width:24px;height:24px;border:none;background:none;cursor:pointer;padding:0}
+    .sp-slider{width:100%;-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;background:var(--line2);outline:none}
+      .sp-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;
+        background:var(--acc);cursor:pointer;border:2px solid var(--tip-bg);box-shadow:0 0 4px rgba(0,0,0,.3)}
+    .sp-note{font-size:var(--f-pkg);color:var(--txt3);line-height:1.5}
+  .dg-row{display:flex;align-items:center;gap:10px;font-size:var(--f-fn);padding:6px 0;border-bottom:1px solid var(--line);line-height:1.45}
+  .dg-row span{color:var(--txt2);flex:0 0 96px}
+  .dg-row b{color:var(--txt);font-weight:600;font-family:var(--mono);font-size:var(--f-pkg);word-break:break-all;text-align:right;margin-left:auto}
+  .dg-label{font-size:var(--f-fn);color:var(--txt2);margin-top:10px;margin-bottom:4px}
+  .dg-log{margin:0;padding:8px 10px;background:rgba(0,0,0,.25);border-radius:8px;font-family:var(--mono);font-size:calc(9.5px * var(--scale));color:var(--txt2);line-height:1.5;white-space:pre-wrap;word-break:break-all;max-height:170px;overflow:auto}
+
+  /* ===== 弹窗（开关后提示：刷新/重启） ===== */
+  .modal-mask{position:absolute;inset:0;z-index:70;display:none;align-items:center;justify-content:center;
+              background:rgba(0,0,0,.38)}
+  .modal-mask.show{display:flex}
+  .modal{width:min(88%,330px);background:var(--tip-bg);border:1px solid var(--line2);border-radius:14px;
+         padding:16px 18px;box-shadow:0 14px 40px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:10px}
+    .md-title{font-size:var(--f-cn);font-weight:600;color:var(--txt);display:flex;align-items:center;gap:8px}
+    .md-title .md-cn{color:var(--acc);font-weight:600}
+    .md-pkg{font-family:var(--mono);font-size:var(--f-pkg);color:var(--txt3);word-break:break-all}
+    .md-body{font-size:var(--f-fn);color:var(--txt2);line-height:1.55}
+    .md-reason{margin-top:8px;font-size:var(--f-pkg);color:var(--txt3);font-family:var(--mono);line-height:1.5;word-break:break-all}
+    .md-body b{color:var(--acc)}
+    .md-actions{display:flex;gap:8px;margin-top:4px}
+    .md-btn{flex:1;padding:8px 0;border:none;border-radius:9px;font:inherit;font-size:var(--f-fn);
+            cursor:pointer;transition:filter .15s}
+    .md-btn.primary{background:var(--acc);color:#1a1405;font-weight:600}
+    .md-btn.primary:hover{filter:brightness(1.12)}
+    .md-btn.ghost{background:transparent;color:var(--txt2);border:1px solid var(--line2)}
+    .md-btn.ghost:hover{color:var(--txt);background:var(--bar)}
+
+  .toast{position:absolute;left:50%;bottom:44px;transform:translateX(-50%) translateY(16px);z-index:80;
+         background:var(--tip-bg);border:1px solid var(--line2);border-radius:10px;padding:8px 14px;
+         font-size:var(--f-fn);color:var(--txt);opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;
+         box-shadow:0 10px 30px rgba(0,0,0,.4);max-width:88%;white-space:nowrap;
+         overflow:hidden;text-overflow:ellipsis}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+  .toast b{color:var(--acc);font-weight:600}
+  body.bold, body.bold *{font-weight:600 !important}
+
+  /* ===== 折叠小条模式 ===== */
+  .win.collapsed .statusbar,.win.collapsed .cols,.win.collapsed .foot,.win.collapsed .resize-handle,.win.collapsed .settings-panel{display:none}
+  .win.collapsed{border-radius:10px}
+  .win.collapsed .titlebar{border-bottom:none;padding:9px 12px}
+
+  .rc-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px dashed var(--line)}
+  .rc-row:last-child{border-bottom:none}
+  .rc-info{flex:1;min-width:0}
+  .rc-name{font-size:var(--f-fn);color:var(--txt);font-family:var(--mono);word-break:break-all}
+  .rc-time{font-size:var(--f-pkg);color:var(--txt3);margin-top:1px}
+  .rc-btn{font-size:var(--f-pkg);padding:4px 10px;border-radius:6px;cursor:pointer;border:1px solid var(--acc);color:var(--acc);background:transparent;transition:background .15s,color .15s}
+  .rc-btn:hover{background:var(--acc);color:#fff}
+  .rc-btn.danger{border-color:rgba(244,99,99,.5);color:#f46666}
+  .rc-btn.danger:hover{background:rgba(244,99,99,.16);color:#f46666}
+  .rc-empty{font-size:var(--f-fn);color:var(--txt3);text-align:center;padding:28px 0}
+</style>
+</head>
+<body>
+<div class="win" id="win">
+  <div class="bg-grid" id="bgGrid"></div>
+  <div class="titlebar">
+    <div class="tb-dot" id="dot"></div>
+    <div class="tb-name">DSH 插件控制台</div>
+    <div class="tb-ver" id="ver"></div>
+    <button class="tb-btn diag" id="diagBtn" title="状态诊断" onclick="onDiag()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></button>
+    <button class="tb-btn settings" id="settingsBtn" title="设置" onclick="onSettings()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    <button class="tb-btn" id="recycleBtn" title="回收站" onclick="onRecycle()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
+    <button class="tb-btn pin on" id="pinBtn" title="置顶" onclick="onPin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6a3 3 0 0 0-6 0z"/></svg></button>
+    <button class="tb-btn collapse" id="collapseBtn" title="折叠成小条 / 展开" onclick="onCollapse()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button>
+    <button class="tb-btn" title="隐藏到托盘（右键托盘图标可真正退出）" onclick="onQuit()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+  </div>
+
+  <div class="settings-panel" id="diagPanel">
+    <div class="sp-head">
+      <span class="sp-title">状态诊断</span>
+      <button class="tb-btn tb-back" title="返回" onclick="closeDiag()">返回</button>
+    </div>
+    <div class="sp-body">
+      <div class="dg-row"><span>悬浮窗版本</span><b id="dgOverlay">—</b></div>
+      <div class="dg-row"><span>dsh 版本</span><b id="dgDsh">—</b></div>
+      <div class="dg-row"><span>连接状态</span><b id="dgConn">—</b></div>
+      <div class="dg-row"><span>端口 3080</span><b id="dgPort">—</b></div>
+      <div class="dg-row"><span>token</span><b id="dgToken">—</b></div>
+      <div class="dg-row"><span>数据目录</span><b id="dgDir">—</b></div>
+      <div class="dg-row"><span>日志目录</span><b id="dgLogDir">—</b></div>
+      <div class="dg-row"><span>dsh 命令</span><b id="dgCmd">—</b></div>
+      <div class="dg-row"><span>回收站目录</span><b id="dgRecycle">—</b></div>
+      <div class="dg-label">启动日志（最新文件尾部）</div>
+      <pre class="dg-log" id="dgLog">加载中…</pre>
+    </div>
+  </div>
+
+  <div class="settings-panel" id="settingsPanel">
+    <div class="sp-head">
+      <span class="sp-title">设置</span>
+      <button class="tb-btn tb-back" title="返回" onclick="closeSettings()">返回</button>
+    </div>
+    <div class="sp-body">
+      <div class="sp-row">
+        <div class="sp-label">整体颜色<span class="sp-val" id="accentVal"></span></div>
+        <div class="sp-swatches" id="swatches"></div>
+      </div>
+      <div class="sp-row">
+        <div class="sp-label">背景透明度<span class="sp-val" id="opacityVal"></span></div>
+        <input class="sp-slider" id="opacitySlider" type="range" min="0.1" max="1" step="0.01">
+      </div>
+      <div class="sp-row">
+        <div class="sp-label">字体大小<span class="sp-val" id="scaleVal"></span></div>
+        <input class="sp-slider" id="scaleSlider" type="range" min="0.8" max="1.5" step="0.05">
+      </div>
+      <div class="sp-row">
+        <div class="sp-label">文字加粗<span class="sp-val" id="boldVal"></span></div>
+        <div class="sw" id="boldBtn" onclick="toggleBold()" title="切换文字加粗"></div>
+      </div>
+      <div class="sp-note">设置自动保存；透明度作用整个背景（文字始终清晰）；整体颜色作用于开关、状态灯与强调色。</div>
+      <div class="sp-note" style="margin-top:10px;padding:9px 11px;border:1px dashed var(--line2);border-radius:9px;color:var(--txt2)">开启关闭插件功能后<b>建议重启 dsh（右下角）</b>，保证插件功能正常；插件正在持续测试更新中，如有好点子或发现 bug 请联系邮箱：<span style="color:var(--acc);font-family:var(--mono)">1707349822@qq.com</span></div>
+      <div class="sp-row sp-danger" style="margin-top:10px;border-top:1px solid var(--line2);padding-top:10px;align-items:flex-start">
+        <div style="flex:1">
+          <div class="sp-label">强制重启 dsh web<span class="sp-val" id="forceTs"></span></div>
+          <div style="font-size:11px;color:var(--txt2);line-height:1.5;margin-top:2px">清理占用 3080 端口的旧 dsh 进程并强制重新开启（会话约 10 秒恢复；用于 dsh 卡死 / 关闭浏览器后无法重新拉起等场景）</div>
+        </div>
+        <button class="foot-btn" id="forceRestartBtn" onclick="doForceRestart()" title="清理旧 dsh 进程并强制重新启动 dsh web">强制重启</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-panel" id="recyclePanel">
+    <div class="sp-head">
+      <span class="sp-title">回收站</span>
+      <button class="tb-btn tb-back" title="返回" onclick="closeRecycle()">返回</button>
+    </div>
+    <div class="sp-body" id="recycleBody"></div>
+  </div>
+
+  <div class="statusbar">
+    <span class="st-dead" id="stText" style="display:none"><span class="pulse" style="background:var(--warn)"></span>dsh 未运行</span>
+    <span class="st-live" id="stLive" style="display:none"><span class="pulse"></span>实时同步中</span>
+    <span class="st-right" id="countBar"></span>
+  </div>
+  <div class="cols">
+    <div class="col" id="colL"></div>
+    <div class="col" id="colR"></div>
+  </div>
+  <div class="foot">
+    <span class="f-num" id="footCount"></span>
+    <span id="footSep" style="display:none">·</span>
+    <span id="footNote" style="display:none">悬停查看使用说明 · 拖边缘调大小</span>
+    <span class="f-note" id="footTs"></span>
+    <button class="foot-btn" id="restartBtn" onclick="doRestart()" title="调用 dshmarket /restart 重启 dsh（插件运行时）">重启 dsh</button>
+  </div>
+  <div class="resize-handle"></div>
+
+  <div class="modal-mask" id="modalMask">
+    <div class="modal" id="modalBox">
+      <div class="md-title" id="mdTitle"></div>
+      <div class="md-pkg" id="mdPkg"></div>
+      <div class="md-body" id="mdBody"></div>
+      <div class="md-actions" id="mdActions"></div>
+    </div>
+  </div>
+  <div class="modal-mask" id="bootMask">
+    <div class="modal" style="text-align:center">
+      <div class="md-title" style="justify-content:center">DSH 插件控制台</div>
+      <div class="md-body" style="text-align:left;margin-top:2px">开启关闭插件功能后<b>建议重启 dsh（右下角）</b>，保证插件功能正常；插件正在持续测试更新中，如有好点子或发现 bug 请联系邮箱：<span style="color:var(--acc);font-family:var(--mono);word-break:break-all">1707349822@qq.com</span></div>
+      <div class="md-body" style="text-align:left;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line2)">关闭插件后会隐藏到状态栏，数量异常为正常现象，鼠标扫过即自动消除</div>
+      <div class="md-body" style="text-align:left;margin-top:8px">提示：若关闭 web 后无法重新唤起，可打开<b>设置</b>中的<b>强制重启</b></div>
+      <div class="md-actions" style="justify-content:center;margin-top:8px">
+        <button class="md-btn primary" style="flex:0 0 120px" onclick="closeBoot()">知道了</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ 中文名 / 使用说明 / 功能 映射表（未知插件显示原名） ============
+var META = {
+  'dshmarket':                     { cn:'插件市场', note:'市场浏览与一键安装', usage:'打开 dsh 页面左侧「插件市场」即可浏览、搜索、一键安装/卸载/启停插件', fns:['浏览市场','搜索插件','一键安装','卸载插件','启停控制','版本管理'] },
+  'dsh-context-doctor':            { cn:'上下文医生', note:'上下文诊断与修复', usage:'在对话里说「检查上下文」或打开上下文面板触发诊断；按提示一键修复', fns:['上下文占用诊断','一键修复','资源占用报告'] },
+  'dsh-plugin-save-token':         { cn:'令牌保存', note:'自动保存登录令牌', usage:'安装后自动保存登录令牌；重启 dsh 无需重新登录', fns:['自动保存登录令牌','重启免登录','令牌自动刷新'] },
+  'dsh-context':                   { cn:'上下文管理', note:'上下文状态管理', usage:'在对话/面板中查看上下文占用，可设置清理策略与内存上限', fns:['上下文占用查看','清理策略','内存上限管理'] },
+  '@memtensor/memos-local-plugin': { cn:'MemOS 本地记忆', note:'本地记忆插件', usage:'对话中提到「记住 X」即自动存取；支持语义检索本地记忆', fns:['对话记忆存取','语义检索','本地存储'] },
+  'dsh-media-skills':              { cn:'媒体技能', note:'视觉审查与媒体工具', usage:'让模型调用媒体工具（视觉审查/媒体处理），生成类请求自动使用', fns:['图片视觉审查','媒体处理工具集'] },
+  'dsh-media-gen':                 { cn:'媒体生成', note:'AI 媒体生成', usage:'对话中提出「生成一张图/一段视频」即触发，可指定风格模板', fns:['图像生成','视频生成','风格模板'] },
+  'dsh-web-artifact-designer':     { cn:'网页产物设计器', note:'前端产物设计生成', usage:'让模型「做一个网页设计稿/前端页面」即调用设计生成', fns:['网页设计稿生成','组件库','预览发布'] },
+  '@smalltailqwq/dsh-client-ui-skin-maid-atelier': { cn:'鲸鱼娘皮肤', note:'客户端皮肤主题', usage:'安装后自动应用客户端皮肤；可在设置中切换主题', fns:['鲸鱼娘皮肤应用','主题切换'] },
+  'dsh-theme-endfield':            { cn:'终末地主题', note:'终末地工业编辑风', usage:'安装后自动应用终末地主题；可在设置中切换', fns:['终末地主题应用','配色方案'] },
+  '@anysearch/anysearch-dsh':      { cn:'AnySearch 搜索', note:'搜索与抓取服务', usage:'对话中让模型「搜索/查一下」即走 AnySearch；需已配置 ANYSEARCH_API_KEY', fns:['Web 搜索','垂直搜索','内容提取'] },
+  'dsh-better-sidebar':            { cn:'增强侧边栏', note:'侧边栏增强', usage:'安装后侧边栏自动增强（布局/快捷面板），可在设置中调整', fns:['侧边栏布局增强','快捷面板'] },
+  'dsh-whale-widget':              { cn:'余额鲸鱼挂件', note:'余额/配额挂件', usage:'桌面显示余额/配额挂件；在挂件设置中配置展示项', fns:['余额展示','配额监控'] },
+  'dsh-theme-mineradio':           { cn:'矿电台主题', note:'主题皮肤', usage:'安装后自动应用主题；可在设置中切换配色', fns:['矿电台主题应用','配色方案'] },
+  '@smalltailqwq/dsh-client-ui-skin-deep-whale-manager': { cn:'深鲸经理皮肤', note:'客户端皮肤主题', usage:'安装后自动应用客户端皮肤；可在设置中切换主题', fns:['深鲸皮肤应用','主题切换'] },
+  '@smalltailqwq/dsh-client-ui-skin-orca-link': { cn:'虎鲸链接皮肤', note:'客户端皮肤主题', usage:'安装后自动应用客户端皮肤；可在设置中切换主题', fns:['虎鲸皮肤应用','主题切换'] },
+  'dsh-dream-skin':                { cn:'梦境皮肤', note:'客户端皮肤主题', usage:'安装后自动应用客户端皮肤；可在设置中切换主题', fns:['梦境皮肤应用','主题切换'] }
+};
+var FALLBACK_USAGE = '暂无使用说明；展开卡片可查看版本与运行状态';
+
+var state = null;
+var openSet = {};
+var busySet = {};
+var collapsedMode = false;
+var settingsOpen = false;
+
+// ============ 设置（颜色/透明度/字体，localStorage 持久化） ============
+var PRESETS = ['#e8b65b','#4fc3f7','#f06292','#b39ddb','#64b5f6','#81c784','#ff8a65'];
+var DEFAULT_SETTINGS = { accent:'#e8b65b', opacity:0.3, scale:1, bold:false };
+var SETTINGS_KEY = 'dsh-overlay-settings';
+
+function loadSettings(){
+  try{
+    var st = Object.assign({}, DEFAULT_SETTINGS, JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'));
+    if(st.opacity > 1) st.opacity = 1;
+    if(st.opacity === 1){ st.opacity = 0.3; } // 旧标定 100% → 新标定 30%（默认档）
+    return st;
+  }
+  catch(e){ return Object.assign({}, DEFAULT_SETTINGS); }
+}
+function saveSettings(){
+  try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(SETTINGS)); }catch(e){}
+}
+var SETTINGS = loadSettings();
+
+// 主色深色化（用于亮背景强调 / 按钮文字底）
+function darken(hex, amt){
+  var n = parseInt(hex.slice(1), 16);
+  var r = Math.max(0, (n>>16) - amt), g = Math.max(0, ((n>>8)&255) - amt), b = Math.max(0, (n&255) - amt);
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+function applyAccent(c){
+  SETTINGS.accent = c;
+  document.documentElement.style.setProperty('--acc', c);
+  document.documentElement.style.setProperty('--acc-deep', darken(c, 52));
+  document.getElementById('accentVal').textContent = c;
+  document.querySelectorAll('#swatches .swatch').forEach(function(w){
+    w.classList.toggle('on', w.getAttribute('data-c').toLowerCase() === c.toLowerCase());
+  });
+}
+function applyOpacity(v){
+  SETTINGS.opacity = v;
+  document.getElementById('opacityVal').textContent = Math.round(v*100) + '%';
+  document.getElementById('opacitySlider').value = v;
+  // 透明度只作用于背景层（磨砂色块），界面文字/卡片不透明
+  document.documentElement.style.setProperty('--bg-opacity', v.toFixed(2));
+}
+function applyScale(s){
+  SETTINGS.scale = s;
+  document.documentElement.style.setProperty('--scale', s.toFixed(2));
+  document.getElementById('scaleVal').textContent = Math.round(s*100) + '%';
+  document.getElementById('scaleSlider').value = s;
+}
+function applyBold(b){
+  SETTINGS.bold = !!b;
+  document.body.classList.toggle('bold', !!b);
+  document.getElementById('boldVal').textContent = b ? '开启' : '关闭';
+  var btn = document.getElementById('boldBtn');
+  if(btn){ btn.classList.toggle('on', !!b); }
+}
+function toggleBold(){ applyBold(!SETTINGS.bold); saveSettings(); }
+var diagOpen = false;
+function onDiag(){
+  diagOpen = !diagOpen;
+  if(diagOpen && settingsOpen){ settingsOpen = false; document.getElementById('settingsPanel').classList.remove('open'); document.getElementById('settingsBtn').classList.remove('on'); }
+  if(diagOpen && recycleOpen){ recycleOpen = false; document.getElementById('recyclePanel').classList.remove('open'); document.getElementById('recycleBtn').classList.remove('on'); }
+  document.getElementById('diagPanel').classList.toggle('open', diagOpen);
+  document.getElementById('diagBtn').classList.toggle('on', diagOpen);
+  if(diagOpen) loadDiag();
+}
+function closeDiag(){ diagOpen = false; document.getElementById('diagPanel').classList.remove('open'); document.getElementById('diagBtn').classList.remove('on'); }
+async function loadDiag(){
+  var d = await window.api.getDiag();
+  if(!d) return;
+  document.getElementById('dgOverlay').textContent = d.overlayVersion || '—';
+  document.getElementById('dgDsh').textContent = d.dshVersion || '—';
+  document.getElementById('dgConn').textContent = (d.connected && state && state.connected) ? ('已连接 · ' + state.plugins.length + ' 个插件 · ' + (state.profile || '')) : '未连接';
+  document.getElementById('dgPort').textContent = (d.portInfo && d.portInfo.listening) ? ('127.0.0.1:3080 监听中 · PID ' + d.portInfo.pid) : '未监听';
+  document.getElementById('dgToken').textContent = d.token || '—';
+  document.getElementById('dgDir').textContent = d.dshDir || '—';
+  document.getElementById('dgLogDir').textContent = d.logDir || '—';
+  document.getElementById('dgCmd').textContent = d.dshCmd || '—';
+  document.getElementById('dgRecycle').textContent = d.recycleDir || '—';
+  document.getElementById('dgLog').textContent = d.logTail || '—';
+}
+function onSettings(){
+  settingsOpen = !settingsOpen;
+  if(settingsOpen && diagOpen){ diagOpen = false; document.getElementById('diagPanel').classList.remove('open'); document.getElementById('diagBtn').classList.remove('on'); }
+  if(settingsOpen && recycleOpen){ recycleOpen = false; document.getElementById('recyclePanel').classList.remove('open'); document.getElementById('recycleBtn').classList.remove('on'); }
+  document.getElementById('settingsPanel').classList.toggle('open', settingsOpen);
+  document.getElementById('settingsBtn').classList.toggle('on', settingsOpen);
+  if(settingsOpen) refreshSettingsUI();
+}
+function closeSettings(){ settingsOpen = false; document.getElementById('settingsPanel').classList.remove('open'); document.getElementById('settingsBtn').classList.remove('on'); }
+var recycleOpen = false;
+function onRecycle(){
+  recycleOpen = !recycleOpen;
+  if(recycleOpen && settingsOpen){ settingsOpen = false; document.getElementById('settingsPanel').classList.remove('open'); document.getElementById('settingsBtn').classList.remove('on'); }
+  if(recycleOpen && diagOpen){ diagOpen = false; document.getElementById('diagPanel').classList.remove('open'); document.getElementById('diagBtn').classList.remove('on'); }
+  document.getElementById('recyclePanel').classList.toggle('open', recycleOpen);
+  document.getElementById('recycleBtn').classList.toggle('on', recycleOpen);
+  if(recycleOpen) loadRecycle();
+}
+function closeRecycle(){ recycleOpen = false; document.getElementById('recyclePanel').classList.remove('open'); document.getElementById('recycleBtn').classList.remove('on'); }
+async function loadRecycle(){
+  var body = document.getElementById('recycleBody');
+  body.innerHTML = '<div class="dg-label" style="color:var(--txt3)">加载中…</div>';
+  var r = await window.api.recycleList();
+  if(!r || !r.ok){ body.innerHTML = '<div class="rc-empty">读取回收站失败</div>'; return; }
+  if(!r.items.length){ body.innerHTML = '<div class="rc-empty">回收站为空<br>删除插件后会先移入此处，可一键恢复</div>'; return; }
+  body.innerHTML = r.items.map(function(it){
+    var t = it.deletedAt ? new Date(it.deletedAt).toLocaleString('zh-CN',{hour12:false}) : '';
+    return '<div class="rc-row"><div class="rc-info"><div class="rc-name">'+esc(it.pkg)+'</div><div class="rc-time">删除于 '+(t||'未知时间')+'</div></div>'+
+      '<button class="rc-btn" onclick="restoreItem(event,\''+escJs(it.dir)+'\')">恢复</button>'+
+      '<button class="rc-btn danger" onclick="deleteItem(event,\''+escJs(it.dir)+'\')">彻底删除</button></div>';
+  }).join('');
+}
+function restoreItem(ev, dir){
+  ev.stopPropagation();
+  showModal('<span>恢复插件</span>', dir, '将从回收站<b>恢复安装</b>此插件（dsh plugin add 本地目录），恢复后需手动开启开关。', [
+    { label:'取消', fn:closeModal },
+    { label:'确认恢复', primary:true, fn:async function(){
+        closeModal();
+        toast('正在恢复插件…');
+        var r = await window.api.recycleRestore(dir);
+        if(r && r.ok){
+          toast('已恢复：' + (r.pkg || dir));
+          loadRecycle();
+        } else {
+          toast('恢复失败：' + ((r && r.error) || 'dsh 未响应'));
+        }
+    }}
+  ]);
+}
+function deleteItem(ev, dir){
+  ev.stopPropagation();
+  showModal('<span>彻底删除</span>', dir, '将<b>永久删除</b>回收站中的此项，无法再恢复。', [
+    { label:'取消', fn:closeModal },
+    { label:'确认删除', primary:true, fn:async function(){
+        closeModal();
+        var r = await window.api.recycleDelete(dir);
+        if(r && r.ok){ toast('已彻底删除'); loadRecycle(); }
+        else { toast('删除失败：' + ((r && r.error) || '未知错误')); }
+    }}
+  ]);
+}
+function refreshSettingsUI(){
+  var sw = document.getElementById('swatches');
+  sw.innerHTML = PRESETS.map(function(c){
+    return '<div class="swatch" data-c="'+c+'" style="background:'+c+'" title="'+c+'"></div>';
+  }).join('') +
+  '<label class="swatch-custom">自定义 <input type="color" id="colorPicker" value="'+SETTINGS.accent+'"></label>';
+  sw.querySelectorAll('.swatch').forEach(function(w){
+    w.addEventListener('click', function(){ applyAccent(w.getAttribute('data-c')); saveSettings(); });
+  });
+  var cp = document.getElementById('colorPicker');
+  cp.addEventListener('input', function(){ applyAccent(cp.value); saveSettings(); });
+  applyAccent(SETTINGS.accent);
+  applyOpacity(SETTINGS.opacity);
+  applyScale(SETTINGS.scale);
+  applyBold(SETTINGS.bold);
+
+}
+// 启动即应用设置
+(function(){
+  applyAccent(SETTINGS.accent);
+  applyScale(SETTINGS.scale);
+  applyOpacity(SETTINGS.opacity);
+  applyBold(SETTINGS.bold);
+})();
+document.getElementById('opacitySlider').addEventListener('input', function(e){ applyOpacity(parseFloat(e.target.value)); saveSettings(); });
+document.getElementById('scaleSlider').addEventListener('input', function(e){ applyScale(parseFloat(e.target.value)); saveSettings(); });
+
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function meta(pkg){ return META[pkg] || { cn:pkg, note:'', usage:FALLBACK_USAGE, fns:[] }; }
+
+function splitCols(plugins){
+  var L=[], R=[];
+  plugins.forEach(function(p,i){ (i%2===0?L:R).push(p); });
+  return [L,R];
+}
+
+function render(){
+  if(!state){
+    document.getElementById('colL').innerHTML=''; document.getElementById('colR').innerHTML='';
+    document.getElementById('countBar').textContent='';
+    document.getElementById('footCount').textContent='';
+    document.getElementById('footSep').style.display='none';
+    document.getElementById('footNote').style.display='none';
+    return;
+  }
+  var dot=document.getElementById('dot');
+  document.getElementById('stText').style.display = state.connected?'none':'inline-flex';
+  document.getElementById('stLive').style.display = state.connected?'inline-flex':'none';
+  dot.className='tb-dot'+(state.connected?' live':'');
+  if(!state.connected){
+    document.getElementById('ver').textContent='';
+    document.getElementById('countBar').textContent='';
+    document.getElementById('footCount').textContent='—';
+    document.getElementById('footSep').style.display='none';
+    document.getElementById('footNote').style.display='none';
+    document.getElementById('footTs').textContent=state.reason||'';
+    document.getElementById('colL').innerHTML=''; document.getElementById('colR').innerHTML='';
+    return;
+  }
+  var live = state.plugins.filter(function(p){ return p.state!=='missing'; });
+  var on = live.filter(function(p){ return p.enabled; }).length;
+  document.getElementById('ver').textContent = state.profile || '';
+  document.getElementById('countBar').textContent = live.length + ' 个插件 · ' + on + ' 启用';
+  document.getElementById('footCount').textContent = on + '/' + live.length + ' 启用';
+  document.getElementById('footSep').style.display='inline';
+  document.getElementById('footNote').style.display='inline';
+  document.getElementById('footTs').textContent = '同步于 ' + new Date(state.ts).toLocaleTimeString('zh-CN',{hour12:false});
+  var cols = splitCols(live);
+  document.getElementById('colL').innerHTML = cols[0].map(cardHtml).join('');
+  document.getElementById('colR').innerHTML = cols[1].map(cardHtml).join('');
+}
+
+function cardHtml(p){
+  var m = meta(p.pkg);
+  var sw = p.enabled ? 'on' : '';
+  if(busySet[p.pkg]) sw += ' busy';
+  var open = openSet[p.pkg] ? ' open' : '';
+  var fns = m.fns && m.fns.length
+    ? m.fns.map(function(f,i){ return fnItem(p, f, i); }).join('')
+    : '<div class="fn">'+esc(stateCn(p.state))+'</div>';
+  var spec = p.spec ? '<div class="fnspec">'+esc(p.spec)+'</div>' : '';
+  return '<div class="pc'+open+(p.enabled?'':' off')+'">'+
+    '<div class="pc-head" onclick="toggleOpen(\''+escJs(p.pkg)+'\')">'+
+      '<span class="pc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></span>'+
+      '<div class="pc-txt"><div class="pkg">'+esc(p.pkg)+'</div><div class="cn">'+esc(m.cn)+(m.note?'<span style="color:var(--txt2);font-size:calc(11px * var(--scale));font-weight:400;margin-left:6px">'+esc(m.note)+'</span>':'')+'</div></div>'+
+      '<span class="sw '+sw+'" onclick="toggleSwitch(event,\''+escJs(p.pkg)+'\')"></span>'+
+    '</div>'+
+    '<div class="pc-body">'+fns+spec+'<div class="pc-del" onclick="uninstallPlugin(event,\''+escJs(p.pkg)+'\')">删除插件</div></div>'+
+    '<div class="pc-tip"><div class="tip-title">'+esc(p.pkg)+'</div><div class="tip-cn">'+esc(m.cn)+'</div><div class="tip-body">如何使用：'+esc(m.usage)+'</div></div>'+
+  '</div>';
+}
+
+function uninstallPlugin(ev, pkg){
+  ev.stopPropagation();
+  showModal('<span>删除插件</span> <span class="md-cn">'+esc(meta(pkg).cn)+'</span>', pkg,
+    '确定要<b>卸载</b>此插件吗？插件文件将<b>移入回收站</b>（dsh-回收站），可随时一键恢复。', [
+    { label:'取消', fn:closeModal },
+    { label:'移入回收站', primary:true, fn:async function(){
+        closeModal();
+        toast('正在卸载插件…');
+        var r = await window.api.uninstall(pkg);
+        if(r && r.ok){
+          toast('已移入回收站：' + pkg + (r.needRestart ? ' · 重启 dsh 后完全移除' : ' · 已即时移除'));
+          var s = await window.api.getState();
+          if(s){ state = s; }
+          render();
+          if(r.needRestart){ setTimeout(function(){ doRestart(); }, 900); }
+        } else {
+          toast('删除失败：' + ((r && r.error) ? r.error : 'dsh 未响应'));
+        }
+    }}
+  ]);
+}
+var fnOpenSet = {};
+
+function stateCn(s){
+  if(s === 'live') return '运行中';
+  if(s === 'disabled') return '已停用';
+  if(s === 'enabled') return '已启用';
+  return s || '';
+}
+
+async function refreshPluginState(ev, pkg){
+  ev.stopPropagation();
+  var s = await window.api.getState();
+  if(s){ state = s; }
+  render();
+  toast('已刷新：' + meta(pkg).cn);
+}
+
+function fnItem(p, f, i){
+  var key = p.pkg + '|' + i;
+  var open = fnOpenSet[key] ? ' open' : '';
+  var panel = fnPanel(p, f, i);
+  return '<div class="fn fn-x'+open+'" onclick="fnToggle(event,\''+escJs(key)+'\')">'+
+    '<span class="fn-arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="width:9px;height:9px"><path d="M9 6l6 6-6 6"/></svg></span>'+
+    '<span>'+esc(f)+'</span>'+
+    (panel ? '<span class="fn-note">'+esc(stateCn(p.state))+'</span></div>'+panel : '</div>');
+}
+
+function fnToggle(ev, key){ ev.stopPropagation(); fnOpenSet[key] = !fnOpenSet[key]; render(); }
+
+function fnPanel(p, f, i){
+  var isTheme = /theme|skin/i.test(p.pkg);
+  if(isTheme && /主题|皮肤|应用/i.test(f)){
+    var themes = state.plugins.filter(function(x){ return /theme|skin/i.test(x.pkg); });
+    if(!themes.length) return '';
+    var rows = themes.map(function(t){
+      var on = t.enabled;
+      return '<div class="th-row"><span class="th-name">'+esc(meta(t.pkg).cn)+'</span>'+
+        (on ? '<span class="th-state">使用中</span>' : '<span class="th-btn" onclick="applyTheme(event,\''+escJs(t.pkg)+'\')">应用</span>')+'</div>';
+    }).join('');
+    return '<div class="fn-panel"><div style="font-size:var(--f-pkg);color:var(--txt3);margin-bottom:4px">已装主题/皮肤 · 应用即切换（互斥）</div>'+rows+'</div>';
+  }
+  if(/启停|开关|启用|停用/i.test(f)){
+    var swLabel = p.enabled ? '停用' : '启用';
+    return '<div class="fn-panel"><div class="fn-act"><button onclick="quickToggle(event,\''+escJs(p.pkg)+'\')">'+swLabel+'此插件</button><button onclick="openWeb()">打开 dsh 页面</button></div><div class="upd-line">当前：'+esc(p.state)+'</div></div>';
+  }
+  if(/版本|更新|升级/i.test(f)){
+    return '<div class="fn-panel"><div class="fn-act"><button onclick="checkUpdates(event,\''+escJs(p.pkg)+'\')">检查更新</button><button onclick="updatePluginNow(event,\''+escJs(p.pkg)+'\')">更新此插件</button><button onclick="openWeb()">打开 dsh 页面</button></div><div class="upd-line" id="upd-'+escJs(p.pkg)+'">点击「检查更新」查看是否有新版本</div></div>';
+  }
+  if(/浏览|搜索|安装|市场/i.test(f)){
+    return '<div class="fn-panel"><div class="fn-act"><button onclick="openWeb()">打开插件市场</button></div></div>';
+  }
+  if(/打开|预览|查看|报告|诊断|刷新|检索|余额|配额|监控|展示/i.test(f)){
+    return '<div class="fn-panel"><div class="fn-act"><button onclick="refreshPluginState(event,\''+escJs(p.pkg)+'\')">刷新状态</button><button onclick="openWeb()">打开 dsh 页面</button></div><div class="upd-line">当前状态：'+esc(stateCn(p.state))+'</div></div>';
+  }
+  return '<div class="fn-panel"><div class="fn-act"><button onclick="refreshPluginState(event,\''+escJs(p.pkg)+'\')">刷新状态</button><button onclick="openWeb()">打开 dsh 页面</button></div><div class="upd-line">该功能请在 dsh 页面中操作</div></div>';
+}
+
+async function applyTheme(ev, pkg){
+  ev.stopPropagation();
+  var r = await window.api.toggle(pkg, true);
+  var s = await window.api.getState(); if(s){ state = s; }
+  render();
+  toast(r && r.ok ? '主题已切换：' + meta(pkg).cn : '切换失败：' + ((r && r.error) || 'dsh 未响应'));
+}
+
+async function quickToggle(ev, pkg){
+  ev.stopPropagation();
+  var cur = null;
+  state.plugins.forEach(function(x){ if(x.pkg === pkg) cur = x; });
+  var target = !(cur && cur.enabled);
+  var r = await window.api.toggle(pkg, target);
+  var s = await window.api.getState(); if(s){ state = s; }
+  render();
+  toast(r && r.ok ? (target ? '已启用：' : '已停用：') + meta(pkg).cn : '操作失败：' + ((r && r.error) || 'dsh 未响应'));
+}
+
+async function checkUpdates(ev, pkg){
+  ev.stopPropagation();
+  var line = document.getElementById('upd-' + pkg);
+  if(line) line.textContent = '检查中…';
+  var r = await window.api.checkUpdates();
+  if(!r || !r.ok){ if(line) line.textContent = '检查失败：' + ((r && r.error) || 'dsh 未响应'); return; }
+  var u = r.updates ? r.updates[pkg] : null;
+  if(!u){ if(line) line.textContent = '当前已是最新版本'; return; }
+  if(u.error){ if(line) line.textContent = '检查失败：' + u.error; return; }
+  var v = u.version || u.latest || u.newVersion || '';
+  if(line) line.textContent = '发现新版本' + (v ? ' ' + v : '') + '，可点击「更新此插件」';
+}
+
+async function updatePluginNow(ev, pkg){
+  ev.stopPropagation();
+  toast('正在更新插件：' + pkg + ' …');
+  var r = await window.api.updatePlugin(pkg);
+  if(r && r.ok){
+    toast('更新已应用：' + pkg + ' · 若未即时生效请重启 dsh');
+    setTimeout(function(){ doRestart(); }, 900);
+  } else {
+    toast('更新失败：' + ((r && r.error) || 'dsh 未响应'));
+  }
+}
+
+function toggleOpen(pkg){
+  openSet[pkg] = !openSet[pkg];
+  render();
+}
+function escJs(s){ return String(s).replace(/'/g,"\\'"); }
+
+// ===== 弹窗：开关后提示要刷新还是重启 =====
+function showModal(titleHtml, pkg, bodyHtml, actions){
+  document.getElementById('mdTitle').innerHTML = titleHtml;
+  document.getElementById('mdPkg').textContent = pkg || '';
+  document.getElementById('mdBody').innerHTML = bodyHtml;
+  var box = document.getElementById('mdActions');
+  box.innerHTML = '';
+  (actions||[]).forEach(function(a){
+    var b = document.createElement('button');
+    b.className = 'md-btn' + (a.primary?' primary':' ghost');
+    b.textContent = a.label;
+    b.addEventListener('click', function(){ a.fn(); });
+    box.appendChild(b);
+  });
+  document.getElementById('modalMask').classList.add('show');
+}
+function closeModal(){ document.getElementById('modalMask').classList.remove('show'); }
+var bootShown = false;
+function showBoot(){ bootShown = true; document.getElementById('bootMask').classList.add('show'); }
+function closeBoot(){
+  document.getElementById('bootMask').classList.remove('show');
+  // 点"知道了"后折叠成顶部小条，由用户手动打开（不保持展开状态）
+  try { if(window.api && window.api.setCollapsed) window.api.setCollapsed(true); } catch(e){}
+}
+
+async function toggleSwitch(ev, pkg){
+  ev.stopPropagation();
+  if(!state) return;
+  var p = state.plugins.find(function(x){ return x.pkg===pkg; });
+  if(!p || busySet[pkg] || !p.togglable) return;
+  busySet[pkg]=true; render();
+  var want = !p.enabled;
+  var r = await window.api.toggle(pkg, want);
+  delete busySet[pkg];
+  var ok = r && r.ok;
+  var cn = meta(pkg).cn;
+  if(ok){
+    p.enabled = want;
+    var verb = want ? '已启用' : '已停用';
+    // 官方判定（dshmarket toggle 返回 restart/refresh 布尔）；重启优先于刷新
+    var needRestart = !!(r.needRestart);
+    var needRefresh = !!(r.needRefresh) && !needRestart;
+    if(!needRestart && !needRefresh && /restart/i.test((r.reason||'') + (r.state||''))) needRestart = true;
+    var reasons = (r.reasons && r.reasons.length) ? r.reasons[0] : (r.reason || '');
+    var reasonLine = reasons ? '<div class="md-reason">官方原因：'+esc(reasons)+'</div>' : '';
+    if(needRestart){
+      showModal('<span>'+verb+'</span> <span class="md-cn">'+esc(cn)+'</span>', pkg,
+        'dsh 官方判定：此插件切换后<b>需要【重启 dsh】</b>才能完全生效。'+reasonLine, [
+        { label:'重启 dsh', primary:true, fn:function(){ closeModal(); doRestart(); } },
+        { label:'知道了', fn:closeModal }
+      ]);
+    } else if(needRefresh){
+      showModal('<span>'+verb+'</span> <span class="md-cn">'+esc(cn)+'</span>', pkg,
+        'dsh 官方判定：此插件含<b>客户端界面</b>，切换后需<b>刷新 dsh 页面（F5）</b>才会显示变化。'+reasonLine, [
+        { label:'打开 dsh 页面', primary:true, fn:function(){ closeModal(); window.api.openWeb(); } },
+        { label:'知道了', fn:closeModal }
+      ]);
+    } else {
+      showModal('<span>'+verb+'</span> <span class="md-cn">'+esc(cn)+'</span>', pkg,
+        'dsh 官方判定：已<b>即时生效</b>（HMR 热加载），无需重启或刷新。'+reasonLine, [
+        { label:'知道了', primary:true, fn:closeModal }
+      ]);
+    }
+  } else {
+    showModal('<span>操作失败</span> <span class="md-cn">'+esc(cn)+'</span>', pkg,
+      esc((r && r.error ? r.error : 'dsh 未响应')+(r && r.reason ? ' · '+r.reason : '')), [
+      { label:'知道了', primary:true, fn:closeModal }
+    ]);
+  }
+  var s = await window.api.getState();
+  if(s) { state = s; }
+  render();
+}
+
+// ===== 重启 / 刷新 =====
+var restarting = false;
+async function doRestart(){
+  if(restarting) return;
+  restarting = true;
+  var rb = document.getElementById('restartBtn');
+  if(rb){ rb.disabled = true; rb.textContent = '重启中…'; }
+  toast('正在重启 dsh…（完成后自动重连）');
+  var r = await window.api.restart();
+  if(r && r.ok){
+    // 等待主进程 poll 恢复连接（onState connected=true 时提示恢复）
+  } else {
+    restarting = false;
+    if(rb){ rb.disabled = false; rb.textContent = '重启 dsh'; }
+    toast('重启失败：' + ((r && r.error) ? r.error : 'dsh 未响应'));
+  }
+}
+async function doRefresh(){
+  toast('正在刷新插件状态…');
+  var s = await window.api.getState();
+  if(s) { state = s; }
+  render();
+  toast('已刷新');
+}
+// 重启后重连提示
+var wasConnected = null;
+window.api.onState(function(s){
+  var c = !!s.connected;
+  if(restarting && c && wasConnected === false){
+    restarting = false;
+    var rb = document.getElementById('restartBtn');
+    if(rb){ rb.disabled = false; rb.textContent = '重启 dsh'; }
+    var fb = document.getElementById('forceRestartBtn');
+    if(fb){ fb.disabled = false; fb.textContent = '强制重启'; }
+    toast('dsh 已重启 · 已重新连接');
+  }
+  if(!bootShown && c && (wasConnected === false || wasConnected === null)){
+    showBoot();
+  }
+  wasConnected = c;
+  state = s; render();
+});
+
+// ===== 折叠小条 =====
+function onCollapse(){ window.api.setCollapsed(!collapsedMode); }
+window.api.onCollapsed(function(c){
+  collapsedMode = !!c;
+  document.getElementById('win').classList.toggle('collapsed', collapsedMode);
+  document.getElementById('collapseBtn').classList.toggle('on', collapsedMode);
+  document.getElementById('collapseBtn').innerHTML = collapsedMode
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 15l6-6 6 6"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>';
+});
+
+// ===== 磨砂背景：25 色块随桌面一致 + 亮度自适应文字配色 =====
+function applyBg(c){
+  if(!c || !c.cells || c.cells.length !== 25) return;
+  var grid = document.getElementById('bgGrid');
+  grid.innerHTML = '';
+  for(var i=0;i<25;i++){
+    var cell = document.createElement('div');
+    cell.className = 'bg-cell';
+    cell.style.background = 'rgb(' + c.cells[i].r + ',' + c.cells[i].g + ',' + c.cells[i].b + ')';
+    grid.appendChild(cell);
+  }
+  var light = (c.luma !== undefined) ? c.luma > 150 : false;
+  document.body.classList.toggle('light-bg', light);
+}
+// 背景颜色自适应已关闭（桌面采样不再发送），保留空实现以防旧消息
+window.api.onBgColor(function(c){ /* no-op */ });
+
+function onPin(){
+  var b=document.getElementById('pinBtn');
+  var on=!b.classList.contains('on');
+  b.classList.toggle('on', on);
+  window.api.setPin(on);
+  toast('置顶已'+(on?'开启':'关闭'));
+}
+function onQuit(){ window.api.hideToTray(); } // 关闭 = 隐藏到托盘常驻（真正退出在托盘菜单）
+
+// ===== 强制重启 dsh web（清理占用并重新开启）=====
+var forcing = false;
+function doForceRestart(){
+  if(forcing) return;
+  showModal('强制重启 dsh', 'dsh web',
+    '将<b>清理占用 3080 端口的旧 dsh 进程</b>并强制重新启动 dsh web。当前会话会断开，约 10 秒后自动重连。继续吗？', [
+    { label:'强制重启', primary:true, fn:function(){ closeModal(); runForceRestart(); } },
+    { label:'取消', fn:closeModal }
+  ]);
+}
+async function runForceRestart(){
+  if(forcing) return;
+  forcing = true; restarting = true;
+  var b = document.getElementById('forceRestartBtn');
+  if(b){ b.disabled = true; b.textContent = '强制重启中…'; }
+  toast('正在清理旧 dsh 进程并强制重启（就绪后自动打开浏览器）…');
+  var r = await window.api.forceRestart();
+  if(r && r.ok){
+    toast('已强制重启 dsh · 等待重新连接' + ((r.killed && r.killed.length) ? '（已清理 ' + r.killed.length + ' 个进程）' : ''));
+  } else {
+    forcing = false; restarting = false;
+    if(b){ b.disabled = false; b.textContent = '强制重启'; }
+    toast('强制重启失败：' + ((r && r.error) ? r.error : '未知错误'));
+  }
+  // 重连恢复提示由 onState 统一处理（wasConnected false→true）
+}
+
+var toastTimer;
+function toast(msg){
+  var t=document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.classList.remove('show');}, 2400);
+}
+
+window.api.onChange(function(c){
+  if(!c.added.length && !c.removed.length) return;
+  toast('检测到插件变更：' + (c.added.length?('新增 '+c.added.length):'') + (c.added.length&&c.removed.length?' / ':'') + (c.removed.length?('卸载 '+c.removed.length):'') + '（已同步）');
+});
+
+window.api.getState().then(function(s){ state=s; render(); });
+setInterval(function(){ if(!state) window.api.getState().then(function(s){ state=s; render(); }); }, 8000);
+</script>
+</body>
+</html>

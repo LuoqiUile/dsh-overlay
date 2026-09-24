@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dsh 插件控制台 · 悬浮窗设计稿 v2</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%23121718'/%3E%3Crect x='9' y='9' width='5' height='14' rx='2.5' fill='%23e8b65b'/%3E%3Crect x='18' y='9' width='5' height='14' rx='2.5' fill='%235a6470'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --txt:#e6edf5; --txt2:#9db0c0; --txt3:#6a7f90;
+    --acc:#e8b65b; --on:#57c98d; --off:#4a5766;
+    --glass:rgba(16,22,29,.66); --glass2:rgba(24,32,42,.60); --card:rgba(255,255,255,.045);
+    --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.18);
+    --mono:"Cascadia Code","JetBrains Mono","Consolas","Microsoft YaHei UI",monospace;
+    --sans:"Segoe UI","Microsoft YaHei UI","PingFang SC",system-ui,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--sans);min-height:100vh;padding:40px 20px 70px;color:var(--txt);
+       background:linear-gradient(135deg,#0b1622 0%,#14202e 46%,#1a2332 100%)}
+  /* 桌面背景内容（供半透明透过） */
+  body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+       background:radial-gradient(circle at 18% 22%,rgba(232,182,91,.16) 0,transparent 30%),
+                  radial-gradient(circle at 82% 70%,rgba(87,201,141,.13) 0,transparent 34%),
+                  radial-gradient(circle at 55% 88%,rgba(90,120,200,.12) 0,transparent 26%),
+                  repeating-linear-gradient(0deg,rgba(255,255,255,.028) 0 1px,transparent 1px 44px),
+                  repeating-linear-gradient(90deg,rgba(255,255,255,.028) 0 1px,transparent 1px 44px)}
+  .wrap{max-width:880px;margin:0 auto;position:relative;z-index:1}
+  .page-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px}
+  .page-head h1{font-size:17px;font-weight:600;letter-spacing:.02em;text-shadow:0 1px 12px rgba(0,0,0,.4)}
+  .page-head .tag{font-size:12px;color:var(--txt3);font-family:var(--mono)}
+  .page-sub{color:var(--txt2);font-size:13px;margin-bottom:26px;line-height:1.7}
+  .page-sub b{color:var(--acc);font-weight:600}
+
+  /* ============ 悬浮窗本体（半透明） ============ */
+  .win{width:420px;background:var(--glass);backdrop-filter:blur(18px) saturate(1.25);
+       -webkit-backdrop-filter:blur(18px) saturate(1.25);
+       border:1px solid var(--line2);border-radius:14px;overflow:hidden;margin:0 auto;
+       box-shadow:0 24px 60px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.10);user-select:none}
+  .titlebar{display:flex;align-items:center;gap:8px;padding:11px 12px;background:var(--glass2);border-bottom:1px solid var(--line)}
+    .tb-dot{width:9px;height:9px;border-radius:50%;background:var(--on);flex:0 0 auto;box-shadow:0 0 10px rgba(87,201,141,.7)}
+    .tb-name{font-size:12.5px;font-weight:600;flex:1}
+    .tb-ver{font-size:10.5px;color:var(--txt3);font-family:var(--mono)}
+    .tb-btn{width:24px;height:24px;display:grid;place-items:center;border-radius:6px;color:var(--txt2);cursor:pointer;background:transparent;border:none;font:inherit}
+    .tb-btn:hover{background:rgba(255,255,255,.09);color:var(--txt)}
+    .tb-btn svg{width:14px;height:14px}
+    .tb-btn.pin.on{color:var(--acc)}
+  .statusbar{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--line);font-size:11.5px;color:var(--txt2)}
+    .st-live{color:var(--on);font-family:var(--mono);font-size:11px;display:inline-flex;align-items:center;gap:5px}
+    .pulse{width:7px;height:7px;border-radius:50%;background:var(--on);animation:pulse 1.8s infinite}
+    @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(87,201,141,.5)}50%{opacity:.55;box-shadow:0 0 0 5px rgba(87,201,141,0)}}
+    .st-sep{color:var(--line2)}
+    .st-right{margin-left:auto;color:var(--txt3);font-family:var(--mono);font-size:10.5px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px;background:transparent}
+    .col{display:flex;flex-direction:column;gap:8px}
+
+  /* 折叠卡片 */
+  .pc{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;transition:border-color .15s}
+    .pc:hover{border-color:var(--line2)}
+    .pc.open{border-color:var(--line2)}
+    .pc-head{display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer}
+    .pc-arrow{width:14px;height:14px;color:var(--txt3);flex:0 0 auto;transition:transform .18s;display:grid;place-items:center}
+    .pc-arrow svg{width:11px;height:11px}
+    .pc.open .pc-arrow{transform:rotate(90deg);color:var(--acc)}
+    .pc-txt{flex:1;min-width:0}
+    .pc .pkg{font-family:var(--mono);font-size:10px;color:var(--txt2);line-height:1.25;word-break:break-all}
+    .pc .cn{font-size:12.5px;font-weight:600;color:var(--txt);margin-top:1px}
+    .sw{width:30px;height:17px;border-radius:9px;background:var(--off);cursor:pointer;position:relative;flex:0 0 auto;transition:background .18s}
+    .sw::after{content:"";position:absolute;left:2px;top:2px;width:13px;height:13px;border-radius:50%;background:#9fb0bf;transition:transform .18s,background .18s}
+    .sw.on{background:var(--on)}
+    .sw.on::after{transform:translateX(13px);background:#eafff5}
+    .pc-body{display:none;border-top:1px solid var(--line);padding:7px 10px 9px;background:rgba(0,0,0,.14)}
+    .pc.open .pc-body{display:block}
+    .fn{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--txt2);padding:4px 0;line-height:1.4}
+    .fn::before{content:"";width:5px;height:5px;border-radius:1.5px;background:var(--acc);flex:0 0 auto}
+    .fn .fn-note{margin-left:auto;font-size:9.5px;color:var(--txt3);font-family:var(--mono)}
+
+  .foot{display:flex;align-items:center;gap:8px;padding:9px 14px;border-top:1px solid var(--line);background:var(--glass2);font-size:11px;color:var(--txt2)}
+    .f-num{font-family:var(--mono);color:var(--acc);font-size:11px}
+    .f-note{margin-left:auto;font-size:10.5px;color:var(--txt3)}
+
+  /* toast */
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(16px);z-index:50;
+         background:rgba(20,27,36,.92);border:1px solid var(--line2);border-radius:10px;padding:9px 16px;
+         font-size:12px;color:var(--txt);opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;
+         box-shadow:0 10px 30px rgba(0,0,0,.4);backdrop-filter:blur(10px)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast b{color:var(--acc);font-weight:600}
+
+  /* ============ 设计说明 ============ */
+  .notes{margin-top:30px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .note{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:14px 16px;backdrop-filter:blur(10px)}
+    .note h3{font-size:12.5px;font-weight:600;color:var(--acc);margin-bottom:8px;letter-spacing:.03em}
+    .note ul{list-style:none}
+    .note li{font-size:12px;color:var(--txt2);line-height:1.75;padding-left:14px;position:relative}
+    .note li::before{content:"";position:absolute;left:0;top:.72em;width:5px;height:5px;border-radius:1.5px;background:var(--acc)}
+    .note li b{color:var(--txt);font-weight:600}
+  .todo{grid-column:1/-1;border-style:dashed}
+    .todo li::before{background:var(--acc2,#f2c97c)}
+  .demo-note{text-align:center;font-size:11px;color:var(--txt3);margin-top:16px;font-family:var(--mono)}
+  .demo-actions{display:flex;gap:10px;justify-content:center;margin-top:14px}
+  .dbtn{background:var(--glass2);border:1px solid var(--line2);color:var(--txt2);font:inherit;font-size:12px;
+        padding:7px 16px;border-radius:9px;cursor:pointer;transition:background .15s}
+  .dbtn:hover{background:rgba(255,255,255,.10);color:var(--txt)}
+  @media(max-width:560px){ .win{width:94%} .notes{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="page-head"><h1>dsh 插件控制台 · 悬浮窗设计稿</h1><span class="tag">v2 · 半透明 + 折叠 + 实时同步 · 2026-09-24</span></div>
+  <div class="page-sub">v2 改动：<b>半透明玻璃质感</b> · 插件卡片<b>可折叠展开功能与开关</b> · 开关与插件增减<b>实时同步 dsh</b>（下方可交互演示）。</div>
+
+  <!-- ===== 悬浮窗示意（可交互） ===== -->
+  <div class="win" id="win">
+    <div class="titlebar">
+      <div class="tb-dot"></div>
+      <div class="tb-name">dsh 插件控制台</div>
+      <div class="tb-ver">0.1.7-rc.1</div>
+      <button class="tb-btn" title="刷新" onclick="refreshAll()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
+      <button class="tb-btn pin on" id="pinBtn" title="置顶" onclick="togglePin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6a3 3 0 0 0-6 0z"/></svg></button>
+      <button class="tb-btn" title="收起"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button>
+      <button class="tb-btn" title="退出"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="statusbar">
+      <span class="st-live"><span class="pulse"></span>实时同步中</span><span class="st-sep">|</span><span>3080</span>
+      <span class="st-right" id="countBar">11 个插件 · 11 启用</span>
+    </div>
+    <div class="cols" id="cols">
+      <div class="col" id="colL"></div>
+      <div class="col" id="colR"></div>
+    </div>
+    <div class="foot">
+      <span class="f-num" id="footCount">11/11 启用</span><span>·</span><span>开关实时生效（部分需重启）</span>
+      <span class="f-note">演示 · 真实接入 dsh 后自动同步</span>
+    </div>
+  </div>
+  <div class="demo-actions">
+    <button class="dbtn" onclick="demoAdd()">演示：新插件安装</button>
+    <button class="dbtn" onclick="demoRemove()">演示：插件卸载</button>
+  </div>
+  <div class="demo-note">↑ 可交互示意：点卡片头展开功能，点开关切换（演示态；真实版将读写 dsh 实际状态）</div>
+
+  <!-- ===== 设计说明 ===== -->
+  <div class="notes">
+    <div class="note">
+      <h3>半透明实现</h3>
+      <ul>
+        <li>悬浮窗整体 <b>半透明玻璃质感</b>：底色 ~66% 透明度 + 背景模糊（blur 18px）</li>
+        <li>标题栏/底部稍加深（~60%），卡片为浅色叠层，透过可见桌面</li>
+        <li>Electron 中可用 <b>setIgnoreMouseEvents + alwaysOnTop + transparent 窗口</b> 实现真实半透明与点击穿透（可配）</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h3>折叠卡片</h3>
+      <ul>
+        <li>每插件一张卡片：头部 = 插件名 + 中文名 + 主开关 + 展开箭头</li>
+        <li>点击展开：列出该插件的<b>各个功能点</b>（示意内容，真实版由插件元数据提供）</li>
+        <li>多卡片可同时展开，也可一次只开一个（可配）</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h3>与 dsh 实时同步</h3>
+      <ul>
+        <li>状态栏「实时同步中」脉冲指示：轮询 dsh 市场接口（2–3s）</li>
+        <li>开关切换 → 立即调 dsh 启停 → 界面回写真实状态（失败回滚+提示）</li>
+        <li><b>插件增减自动同步</b>：检测到安装/卸载 → 卡片自动增删、计数更新、toast 提示（点上方两个演示按钮体验）</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h3>待确认（延续）</h3>
+      <ul>
+        <li>1. 技术方案用 Electron 吗（依赖约 100MB）？</li>
+        <li>2. 3 个 filesystem skill 是否只读展示？</li>
+        <li>3. 守护检测同步启动 还是 一键脚本？</li>
+        <li>4. 半透明程度 / 点击穿透 要默认开启吗？</li>
+        <li>5. 工程目录 C:\deepseek harness\dsh-overlay\ 可以吗？</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h3>后续扩展预留</h3>
+      <ul>
+        <li>开机自启、不透明度滑块、深/浅主题、搜索过滤、拖拽排序、版本与更新提示、多 profile、窗口尺寸记忆、点击穿透开关</li>
+      </ul>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  var PLUGINS = [
+    {pkg:'dshmarket', cn:'插件市场', note:'市场浏览与一键安装',
+     fns:[['浏览市场','live'],['搜索插件','live'],['一键安装','live'],['版本管理','']]},
+    {pkg:'dsh-context-doctor', cn:'上下文医生', note:'上下文诊断与修复',
+     fns:[['上下文诊断','live'],['一键修复',''],['资源占用报告','']]},
+    {pkg:'dsh-plugin-save-token', cn:'令牌保存', note:'自动保存登录令牌',
+     fns:[['自动保存令牌','live'],['会话恢复',''],['令牌刷新','']]},
+    {pkg:'dsh-context', cn:'上下文管理', note:'上下文状态管理',
+     fns:[['上下文状态查看','live'],['清理策略',''],['内存管理','']]},
+    {pkg:'@memtensor/memos-local-plugin', cn:'MemOS 本地记忆', note:'本地记忆插件',
+     fns:[['记忆存取','live'],['语义检索',''],['本地存储','']]},
+    {pkg:'dsh-media-skills', cn:'媒体技能', note:'视觉审查与媒体工具',
+     fns:[['视觉审查','live'],['媒体工具集','']]},
+    {pkg:'dsh-media-gen', cn:'媒体生成', note:'AI 媒体生成',
+     fns:[['图像生成','live'],['视频生成',''],['风格模板','']]},
+    {pkg:'dsh-web-artifact-designer', cn:'网页产物设计器', note:'前端产物设计生成',
+     fns:[['设计稿生成','live'],['组件库',''],['预览发布','']]},
+    {pkg:'@smalltailqwq/dsh-client-ui-skin-maid-atelier', cn:'鲸鱼娘皮肤', note:'客户端皮肤主题',
+     fns:[['皮肤应用','live'],['主题切换','']]},
+    {pkg:'dsh-theme-endfield', cn:'终末地主题', note:'终末地工业编辑风',
+     fns:[['主题应用','live'],['配色方案','']]},
+    {pkg:'@anysearch/anysearch-dsh', cn:'AnySearch 搜索', note:'搜索与抓取服务',
+     fns:[['Web 搜索','live'],['垂直搜索',''],['内容提取','']]}
+  ];
+  var state = {};      // pkg -> true/false 启用
+  var removed = {};    // pkg -> true 已卸载
+  PLUGINS.forEach(function(p){ state[p.pkg]=true; });
+
+  function render(){
+    var live = PLUGINS.filter(function(p){return !removed[p.pkg];});
+    var L=[],R=[];
+    live.forEach(function(p,i){ (i%2===0?L:R).push(cardHtml(p)); });
+    document.getElementById('colL').innerHTML=L.join('');
+    document.getElementById('colR').innerHTML=R.join('');
+    var on = live.filter(function(p){return state[p.pkg];}).length;
+    document.getElementById('countBar').textContent = live.length + ' 个插件 · ' + on + ' 启用';
+    document.getElementById('footCount').textContent = on + '/' + live.length + ' 启用';
+  }
+  function cardHtml(p){
+    var sw = state[p.pkg] ? 'on' : '';
+    return '<div class="pc" id="pc-'+esc(p.pkg)+'" onclick="toggleOpen(this)">'+
+      '<div class="pc-head">'+
+        '<span class="pc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></span>'+
+        '<div class="pc-txt"><div class="pkg">'+esc(p.pkg)+'</div><div class="cn">'+esc(p.cn)+'</div></div>'+
+        '<span class="sw '+sw+'" onclick="toggleSwitch(event,\''+escJs(p.pkg)+'\')"></span>'+
+      '</div>'+
+      '<div class="pc-body">'+p.fns.map(function(f){ return '<div class="fn">'+esc(f[0])+'<span class="fn-note">'+(f[1]==='live'?'运行中':'—')+'</span></div>'; }).join('')+'</div>'+
+    '</div>';
+  }
+  function toggleOpen(el){
+    if(event.target.closest && event.target.closest('.sw')) return;
+    el.classList.toggle('open');
+  }
+  function toggleSwitch(ev,pkg){
+    ev.stopPropagation();
+    state[pkg]=!state[pkg];
+    var p=PLUGINS.filter(function(x){return x.pkg===pkg;})[0];
+    render();
+    toast((state[pkg]?'已启用':'已停用')+' '+p.cn+'（已同步 dsh · 演示）');
+  }
+  function demoAdd(){
+    var i=Math.floor(Math.random()*PLUGINS.length), p=PLUGINS[i];
+    if(!removed[p.pkg]) return toast('该插件已存在');
+    removed[p.pkg]=false; state[p.pkg]=true; render();
+    toast('检测到安装：'+p.cn+'（已同步 · 演示）');
+  }
+  function demoRemove(){
+    var live=PLUGINS.filter(function(p){return !removed[p.pkg];});
+    if(live.length<=1) return toast('至少保留一个（演示限制）');
+    var i=Math.floor(Math.random()*live.length), p=live[i];
+    removed[p.pkg]=true; render();
+    toast('检测到卸载：'+p.cn+'（已同步 · 演示）');
+  }
+  function refreshAll(){ toast('已刷新插件列表与状态（演示）'); }
+  function togglePin(){ document.getElementById('pinBtn').classList.toggle('on'); toast('置顶已'+(document.getElementById('pinBtn').classList.contains('on')?'开启':'关闭')); }
+  var toastTimer;
+  function toast(msg){ var t=document.getElementById('toast'); t.innerHTML=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(function(){t.classList.remove('show');},1800); }
+  function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function escJs(s){ return s.replace(/'/g,"\\'"); }
+  render();
+</script>
+</body>
+</html>

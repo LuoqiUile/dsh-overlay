@@ -1,0 +1,15 @@
+# 依赖与产物（不提交）
+node_modules/
+dist/
+_backup/
+
+# 自检截图与调试产物
+_selfcheck*.png
+_*.png
+_gen-tray-icon.js
+*.log
+fired.txt
+
+# 系统
+Thumbs.db
+Desktop.ini

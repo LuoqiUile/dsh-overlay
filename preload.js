@@ -1,0 +1,26 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('api', {
+  getState: () => ipcRenderer.invoke('get-state'),
+  toggle: (pkg, enabled) => ipcRenderer.invoke('toggle-plugin', pkg, enabled),
+  restart: () => ipcRenderer.invoke('restart-dsh'),
+  setPin: (on) => ipcRenderer.invoke('set-pin', on),
+  setCollapsed: (on) => ipcRenderer.invoke('set-collapsed', on),
+  hideToTray: () => ipcRenderer.invoke('hide-to-tray'),
+  forceRestart: () => ipcRenderer.invoke('force-restart-dsh'),
+  quit: () => ipcRenderer.invoke('quit-app'),
+  openWeb: () => ipcRenderer.invoke('open-web'),
+  getDiag: () => ipcRenderer.invoke('get-diag'),
+  setAutostart: (on) => ipcRenderer.invoke('set-autostart', on),
+  uninstall: (pkg) => ipcRenderer.invoke('uninstall-plugin', pkg),
+  isSelfcheck: process.argv.includes('--dsh-overlay-selfcheck') || !!process.env.DSH_OVERLAY_SELFCHECK,
+  checkUpdates: () => ipcRenderer.invoke('check-updates'),
+  recycleList: () => ipcRenderer.invoke('recycle-list'),
+  recycleRestore: (dir) => ipcRenderer.invoke('recycle-restore', dir),
+  recycleDelete: (dir) => ipcRenderer.invoke('recycle-delete', dir),
+  updatePlugin: (name) => ipcRenderer.invoke('update-plugin', name),
+  onState: (cb) => { ipcRenderer.on('state', (_e, s) => cb(s)); },
+  onChange: (cb) => { ipcRenderer.on('plugin-changes', (_e, c) => cb(c)); },
+  onCollapsed: (cb) => { ipcRenderer.on('collapsed', (_e, c) => cb(c)); },
+  onBgColor: (cb) => { ipcRenderer.on('bg-color', (_e, c) => cb(c)); },
+});
