@@ -1,0 +1,5 @@
+# dsh-overlay-launcher bundle patch 片段（dshmarket bundle 层 insert 格式）
+# 插件路径优先级：环境变量 DSH_OVERLAY_EXE > 安装包默认目录 > 本机开发目录
+- insert:
+    - id: overlay-launcher
+      name: dsh-overlay-launcher

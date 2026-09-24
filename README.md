@@ -6,7 +6,26 @@
 
 **DSH 插件控制台**是一个基于 Electron 的 Windows 桌面悬浮窗应用，专为 [DeepSeek Harness（dsh）](https://www.npmjs.com/package/@deepseek-ai/dsh) 用户打造。它以无边框透明悬浮窗的形式常驻桌面，**两列实时罗列 dsh 已安装的全部插件**，每张卡片包含中文名、版本、状态与独立开关，并提供设置、状态诊断、回收站、强制重启等管理能力。
 
-配合 [`dsh-overlay-launcher`](https://github.com/LuoqiUile/dsh-overlay-launcher) 启动钩子，`dsh web` 一启动，悬浮窗自动出现。
+配合本仓库内置的 `launcher/` 启动钩子，`dsh web` 一启动，悬浮窗自动出现。
+
+> **📦 最新安装包（v0.1.33）**：GitHub Releases → [https://github.com/LuoqiUile/dsh-overlay/releases](https://github.com/LuoqiUile/dsh-overlay/releases)（setup 安装包 + portable 便携版）
+
+## 📁 项目结构（统一仓库）
+
+```
+dsh-overlay/                  ← 本项目 = 悬浮窗完整生态
+├── main.js / preload.js      ← 悬浮窗主进程与桥接
+├── renderer/index.html       ← 悬浮窗界面
+├── package.json              ← 工程与打包配置
+├── launcher/                 ← 自动拉起钩子插件（dsh-overlay-launcher 源码）
+├── docs/                     ← 全部教程文档
+│   ├── 插件安装教程.md           ← 插件安装全指南
+│   ├── dsh-插件一键安装指令清单.md ← 「给dsh安装skill：…」格式一键清单
+│   ├── DSH插件控制台安装教程.md   ← 本插件专项安装教程
+│   └── 其他设备部署说明.md        ← 跨设备三步部署
+├── README.md / LICENSE
+└── dist/（不入库，Release 分发）
+```
 
 ---
 
@@ -65,10 +84,11 @@ npm start          # 或双击 启动悬浮窗.cmd
 
 ### 自动拉起（推荐）
 
-安装 [`dsh-overlay-launcher`](https://github.com/LuoqiUile/dsh-overlay-launcher) 启动钩子后，每次 `dsh web` 都会自动拉起悬浮窗：
+安装本仓库 `launcher/` 目录内的启动钩子后，每次 `dsh web` 都会自动拉起悬浮窗：
 
-```bash
-dsh plugin --profile web add "git+https://github.com/LuoqiUile/dsh-overlay-launcher#master"
+```powershell
+# 方式一：从统一仓库本地安装（下载本仓库后执行）
+dsh plugin --profile web add "file:路径\dsh-overlay\launcher"
 ```
 
 ---
@@ -147,6 +167,8 @@ dsh-overlay/
 ├── preload.js           # contextBridge 安全桥接（12+ 方法）
 ├── renderer/index.html  # 界面（两列卡片 / 设置 / 诊断 / 回收站 / 开屏）
 ├── package.json         # 工程与打包配置
+├── launcher/            # 自动拉起钩子插件（源码副本）
+├── docs/                # 教程文档（安装 / 一键清单 / 部署）
 ├── 启动悬浮窗.cmd        # 一键启动脚本
 ├── start-overlay.cmd    # ASCII 启动脚本（跨设备）
 ├── tray-icon.png        # 托盘图标

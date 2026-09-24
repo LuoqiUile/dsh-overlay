@@ -1,0 +1,13 @@
+{
+  "name": "dsh-overlay-launcher",
+  "version": "1.0.7",
+  "description": "dsh 启动钩子：dsh 每次启动时自动拉起 DSH 插件控制台悬浮窗（单实例，已在运行则复用）。悬浮窗路径优先级：插件配置 exe > 环境变量 DSH_OVERLAY_EXE > 安装包默认目录 > 本机开发目录。",
+  "type": "module",
+  "main": "index.js",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "license": "MIT"
+}
