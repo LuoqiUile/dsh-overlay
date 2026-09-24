@@ -35,14 +35,36 @@ let DSH_CMD = process.env.DSH_CMD && existsSync(process.env.DSH_CMD) ? process.e
   });
 })();
 
-// dsh 日志（token 来源）：多路径探测，dsh 安装位置变化也能找到
+// dsh 日志（token 来源）：多路径探测，dsh 安装位置/版本变化也能找到
 function resolveWebLog() {
   const cands = [
     path.join(process.env.APPDATA || '', 'npm', 'dsh-web.log'),
     path.join(process.env.USERPROFILE || '', 'AppData', 'Roaming', 'npm', 'dsh-web.log'),
+    path.join(process.env.LOCALAPPDATA || '', 'npm', 'dsh-web.log'),
+    path.join(process.env.LOCALAPPDATA || '', 'Programs', 'npm', 'dsh-web.log'),
     path.join(path.dirname(DSH_CMD), 'dsh-web.log'),
+    path.join(path.dirname(DSH_CMD), '..', 'dsh-web.log'),
   ];
   for (const c of cands) { try { if (existsSync(c)) return c; } catch (e) {} }
+  // 兜底：扫描 ~/.dsh/logs 最新含 token= 的日志（版本差异时日志可能落这里）
+  try {
+    const logsDir = path.join(process.env.USERPROFILE || '', '.dsh', 'logs');
+    if (existsSync(logsDir)) {
+      const files = require('fs').readdirSync(logsDir).filter((f) => f.endsWith('.log')).map((f) => path.join(logsDir, f));
+      files.sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs);
+      for (const f of files.slice(0, 5)) {
+        try {
+          const st = statSync(f);
+          const size = Math.min(st.size, 65536);
+          const fd = require('fs').openSync(f, 'r');
+          const buf = Buffer.alloc(size);
+          require('fs').readSync(fd, buf, 0, size, Math.max(0, st.size - size));
+          require('fs').closeSync(fd);
+          if (/token=/.test(buf.toString('utf8'))) return f;
+        } catch (e) {}
+      }
+    }
+  } catch (e) {}
   return cands[0];
 }
 const PROFILE_DIR = path.join(process.env.USERPROFILE || '', '.dsh', 'profiles', 'web');
