@@ -1,8 +1,8 @@
-// dsh-overlay-launcher v1.0.7
+// dsh-overlay-launcher v1.0.8
 // dsh 启动钩子：dsh 启动完成后自动拉起 DSH 插件控制台悬浮窗。
 // 用 cordis ready 事件（应用启动完成）触发，避免启动早期拉起被清理；8s 延迟兜底保证拉起。
 // 配置经插件第二参数 config 传入（cordis 4 约定；ctx.config 需显式注入，不使用）。
-// 悬浮窗路径优先级：config.exe > 环境变量 DSH_OVERLAY_EXE > 安装包默认目录 > ASCII 启动脚本 > 本机开发启动脚本。
+// 悬浮窗路径优先级：config.exe > 环境变量 DSH_OVERLAY_EXE > 安装包默认目录 > 便携版默认目录 > ASCII 启动脚本 > 本机开发启动脚本。
 // 悬浮窗自身有单实例锁：已在运行则新实例自动退出并聚焦原窗口，重复拉起无副作用。
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -25,6 +25,7 @@ export default function (ctx, config) {
         cfg.exe || null,
         process.env.DSH_OVERLAY_EXE || null,
         process.env.ProgramFiles ? 'C:\\Program Files\\DSH插件控制台\\DSH插件控制台.exe' : null,
+        process.env.LOCALAPPDATA ? process.env.LOCALAPPDATA + '\\DSH插件控制台\\DSH插件控制台.exe' : null,
         'C:\\deepseek harness\\dsh-overlay\\start-overlay.cmd',
         'C:\\deepseek harness\\dsh-overlay\\启动悬浮窗.cmd',
       ].filter(Boolean);

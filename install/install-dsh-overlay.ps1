@@ -6,8 +6,8 @@ param([switch]$Uninstall)
 $ErrorActionPreference = 'Continue'
 $REPO = 'LuoqiUile/dsh-overlay'
 $VER = 'v0.1.33'
-$PORTABLE_URL = "https://github.com/$REPO/releases/download/$VER/DSH插件控制台-0.1.33-x64-portable.exe"
-$PORTABLE_URL_PROXY = "https://gh-proxy.com/https://github.com/$REPO/releases/download/$VER/DSH插件控制台-0.1.33-x64-portable.exe"
+$PORTABLE_URL = "https://github.com/$REPO/releases/download/$VER/DSH.-0.1.33-x64-portable.exe"
+$PORTABLE_URL_PROXY = "https://gh-proxy.com/https://github.com/$REPO/releases/download/$VER/DSH.-0.1.33-x64-portable.exe"
 $DEST = Join-Path $env:LOCALAPPDATA 'DSH插件控制台'
 $EXE = Join-Path $DEST 'DSH插件控制台.exe'
 
@@ -23,7 +23,7 @@ Write-Host '=== DSH 插件控制台 自动安装 ===' -ForegroundColor Green
 if ($Uninstall) {
   Write-Host '=== 卸载模式 ===' -ForegroundColor Yellow
   Step '移除 launcher 钩子' {
-    dsh plugin uninstall dsh-overlay-launcher
+    dsh plugin uninstall dsh-overlay-launcher --profile web
     Write-Host '  launcher 已移除（若未安装会提示，属正常）'
   }
   Step '删除悬浮窗目录' {
@@ -91,20 +91,20 @@ Step '悬浮窗下载' {
 
 # 6. launcher
 Step 'launcher 自动拉起钩子' {
-  $tmp = Join-Path $env:TEMP 'dsh-overlay-repo'
-  if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp }
-  git clone --depth 1 "https://github.com/$REPO.git" $tmp
-  if ($LASTEXITCODE -ne 0) { git clone --depth 1 "https://gh-proxy.com/https://github.com/$REPO.git" $tmp }
-  dsh plugin --profile web add "file:$tmp\launcher"
+  $src = Join-Path $env:LOCALAPPDATA 'dsh-overlay-src'   # 勿用 TEMP：file: 路径会写进 lockfile
+  if (Test-Path $src) { Remove-Item -Recurse -Force $src }
+  git clone --depth 1 "https://github.com/$REPO.git" $src
+  if ($LASTEXITCODE -ne 0) { git clone --depth 1 "https://gh-proxy.com/https://github.com/$REPO.git" $src }
+  dsh plugin --profile web add "file:$src\launcher"
   if ($LASTEXITCODE -ne 0) { throw 'launcher 安装失败' }
   Write-Host '  launcher 已安装'
 }
 
 # 7. 验证
 Step '最终验证' {
-  $list = dsh plugin list 2>$null | Out-String
+  $list = dsh plugin list --profile web 2>$null | Out-String
   $hasLauncher = $list -match 'dsh-overlay-launcher'
-  Write-Host "  dsh plugin list 含 launcher: $hasLauncher"
+  Write-Host "  dsh plugin list --profile web 含 launcher: $hasLauncher"
   if (-not $hasLauncher) { throw 'launcher 未出现在插件列表' }
 }
 
