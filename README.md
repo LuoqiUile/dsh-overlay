@@ -1,14 +1,16 @@
 # DSH 插件控制台（dsh-overlay）
 
-> DeepSeek Harness 插件控制台悬浮窗 —— 随 dsh 启动，全部插件一目了然、随手开关。
+> **本插件旨在利用悬浮窗解决插件矛盾造成界面混乱、无法正常使用关闭 skill 的问题** —— 全部插件一目了然、随手开关，让 dsh 桌面恢复清爽可控。
 
-![version](https://img.shields.io/badge/version-0.1.35-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-lightgrey) ![license](https://img.shields.io/badge/license-MIT-green)
+![version](https://img.shields.io/badge/version-0.1.37-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-lightgrey) ![license](https://img.shields.io/badge/license-MIT-green)
 
 **DSH 插件控制台**是一个基于 Electron 的 Windows 桌面悬浮窗应用，专为 [DeepSeek Harness（dsh）](https://www.npmjs.com/package/@deepseek-ai/dsh) 用户打造。它以无边框透明悬浮窗的形式常驻桌面，**两列实时罗列 dsh 已安装的全部插件**，每张卡片包含中文名、版本、状态与独立开关，并提供设置、状态诊断、回收站、强制重启等管理能力。
 
 配合本仓库内置的 `launcher/` 启动钩子，`dsh web` 一启动，悬浮窗自动出现。
 
-> **📦 最新安装包（v0.1.35）**：GitHub Releases → [https://github.com/LuoqiUile/dsh-overlay/releases](https://github.com/LuoqiUile/dsh-overlay/releases)（setup 安装包 + portable 便携版；资产名为 `DSH.-0.1.35-x64-setup.exe` / `DSH.-0.1.35-x64-portable.exe`）
+> **📦 最新安装包（v0.1.37）**：GitHub Releases → [https://github.com/LuoqiUile/dsh-overlay/releases](https://github.com/LuoqiUile/dsh-overlay/releases)（setup 安装包 + portable 便携版；GitHub 资产显示名为 `DSH.-0.1.37-x64-setup.exe` / `DSH.-0.1.37-x64-portable.exe`）
+
+---
 
 ## 📁 项目结构（统一仓库）
 
@@ -18,6 +20,8 @@ dsh-overlay/                  ← 本项目 = 悬浮窗完整生态
 ├── renderer/index.html       ← 悬浮窗界面
 ├── package.json              ← 工程与打包配置
 ├── launcher/                 ← 自动拉起钩子插件（dsh-overlay-launcher 源码）
+├── install/                  ← 智能体一键安装/卸载脚本
+├── INSTALL-AGENT.md          ← 智能体安装指南（环境检测→dsh→dshmarket→launcher→验证）
 ├── docs/                     ← 全部教程文档
 │   ├── 插件安装教程.md           ← 插件安装全指南
 │   ├── dsh-插件一键安装指令清单.md ← 「给dsh安装skill：…」格式一键清单
@@ -39,7 +43,7 @@ dsh-overlay/                  ← 本项目 = 悬浮窗完整生态
 | 悬停提示 | 鼠标悬停插件卡 → 并排显示使用说明（不遮挡） |
 | 展开详情 | 展开小三角：功能项可再展开直接操作（应用主题 / 启停 / 检查更新 / 更新此插件 / 打开市场 / 刷新状态 / 删除插件） |
 | 回收站 | 删除插件移入回收站，可一键恢复或彻底删除 |
-| 折叠小条 | 窗口收成顶部 42px 小条（不缩回任务栏），点展开恢复 |
+| 折叠小条 | 窗口收成顶部 42px 小条（不缩回任务栏），点展开恢复；任务栏唤回后状态自动同步 |
 | 托盘常驻 | 点关闭（X）隐藏到状态栏，进程保留；托盘图标点击唤回 |
 | 托盘快捷操作 | 右键托盘：显示 / 折叠 / **强制重启 dsh web** / 退出 |
 | 自由缩放 | 拖窗口边缘任意调整大小 |
@@ -56,11 +60,11 @@ dsh-overlay/                  ← 本项目 = 悬浮窗完整生态
 
 ### 方式 A：安装包（推荐正式使用）
 
-从发布页下载 `DSH插件控制台-0.1.33-x64-setup.exe`，双击运行，向导安装，自动创建桌面快捷方式与开始菜单项。
+从发布页下载 `DSH.-0.1.37-x64-setup.exe`，双击运行，向导安装，自动创建桌面快捷方式与开始菜单项。
 
 ### 方式 B：便携版
 
-下载 `DSH插件控制台-0.1.33-x64-portable.exe`，放到任意目录双击直接运行（首次会自解压，稍慢几秒），免安装绿色使用。
+下载 `DSH.-0.1.37-x64-portable.exe`，放到任意目录双击直接运行（首次会自解压，稍慢几秒），免安装绿色使用。
 
 ### 方式 C：源码运行（开发）
 
@@ -85,7 +89,7 @@ npm start          # 或双击 启动悬浮窗.cmd
 
 ### 方式 0：智能体一键安装（推荐，无需手动步骤）
 
-把这段话发给任意具备 Shell 能力的 AI 智能体（豆包 / Claude 等），自动完成全部安装配置：
+把这段话发给任意具备 Shell 能力的 AI 智能体（豆包 / Claude / DeepSeek 等），自动完成全部安装配置：
 
 ```
 请在我的电脑上自动安装「DSH 插件控制台」。
@@ -95,7 +99,7 @@ npm start          # 或双击 启动悬浮窗.cmd
 严格按该文件步骤执行，每步验证结果；需要安装授权时向用户确认；完成后汇报结果。
 ```
 
-> 智能体会自动：检测/安装 Node → dsh → GitHub 加速 → 下载悬浮窗便携版 → 装 launcher 钩子 → 整体验证。
+> 智能体会自动：检测/安装 Node → dsh → GitHub 加速 → 下载悬浮窗便携版 → 装 dshmarket 前置依赖 → 装 launcher 钩子 → 整体验证。
 > 也可直接运行自动脚本：`powershell -ExecutionPolicy Bypass -File install/install-dsh-overlay.ps1`
 
 **卸载**（发这段话给智能体即可自动移除）：
@@ -107,10 +111,6 @@ npm start          # 或双击 启动悬浮窗.cmd
 ```
 
 > 也可直接运行：`powershell -ExecutionPolicy Bypass -File install/install-dsh-overlay.ps1 -Uninstall`
-
-### 方式 1：安装包（推荐正式使用）
-
-> 悬浮窗依赖 dsh 的本地接口（`127.0.0.1:3080`）与登录 token 日志；**dsh 未运行时显示「未连接」、插件列表为空**。
 
 ### 自动拉起（推荐）
 
@@ -131,11 +131,11 @@ dsh plugin --profile web add "file:路径\dsh-overlay\launcher"
 
 | 按钮 | 作用 |
 | --- | --- |
-| 状态诊断（扳手） | 打开诊断面板：dsh 命令、token、连接、回收站目录 |
+| 状态诊断（扳手） | 打开诊断面板：dsh 命令、token、连接状态、回收站目录 |
 | 设置 | 打开设置面板（颜色 / 透明度 / 字体 / 加粗 / 强制重启） |
 | 回收站 | 打开回收站（已删除插件，可恢复 / 彻底删除） |
 | 置顶 | 悬浮窗置顶开关 |
-| 折叠 | 收成顶部小条 |
+| 折叠 | 收成顶部小条（42px，不缩回任务栏；最小化后从任务栏唤回会自动同步状态） |
 | 关闭（X） | 隐藏到状态栏托盘（进程常驻；真正退出在托盘菜单） |
 
 ### 插件卡片
@@ -146,7 +146,7 @@ dsh plugin --profile web add "file:路径\dsh-overlay\launcher"
 
 ### 状态栏与底部
 
-- 状态栏：实时连接状态 + 插件计数
+- 状态栏：实时连接状态 + 插件计数；**异常时显示真实原因**（如「缺少 dshmarket 插件」「需登录 token」），不再一律显示「dsh 未运行」
 - 底部：插件总数 + 「重启 dsh」按钮（调用 dshmarket `/restart`）
 
 ### 设置面板
@@ -173,18 +173,19 @@ dsh plugin --profile web add "file:路径\dsh-overlay\launcher"
 
 | 变量 | 说明 |
 | --- | --- |
-| `DSH_OVERLAY_EXE` | 悬浮窗程序路径（launcher 插件拉起时使用，可选） |
+| `DSH_OVERLAY_EXE` | 悬浮窗程序路径（launcher 插件拉起时使用，可选；也支持 HKCU\Environment 注册表回退） |
 
 ### token 机制
 
-dsh 每次启动 token 会变化，悬浮窗自动从 `%APPDATA%\npm\dsh-web.log`（或 PATH 中 dsh.cmd 旁日志）尾部读取新 token，无需手动配置。
+悬浮窗自动从 `%APPDATA%\npm\dsh-web.log`（或 PATH 中 dsh.cmd 旁日志）尾部读取 token；新版 dsh 不写日志时，`/dsh-market` 接口免 token 可直接连接，悬浮窗还能在 3080 未监听时**自动启动 dsh web**。
 
-### 数据与日志
+### 数据与日志（v0.1.36 起固定到 `%LOCALAPPDATA%\DSH插件控制台`，便携版不再随临时目录丢失）
 
 | 项目 | 位置 |
 | --- | --- |
-| 界面设置 | localStorage（自动记忆） |
-| 运行日志 | `%APPDATA%\DSH插件控制台\error.log`（异常兜底） |
+| 界面设置 | `%LOCALAPPDATA%\DSH插件控制台\`（userData 固定，含 localStorage） |
+| 运行日志 | `%LOCALAPPDATA%\DSH插件控制台\error.log`（异常兜底） |
+| launcher 日志 | `%LOCALAPPDATA%\DSH插件控制台\launcher.log`（UTF-8） |
 | 回收站 | `%USERPROFILE%\.dsh\recycle`（或本机 `C:\deepseek harness\dsh-回收站`） |
 
 ---
@@ -195,11 +196,12 @@ dsh 每次启动 token 会变化，悬浮窗自动从 `%APPDATA%\npm\dsh-web.log
 
 ```
 dsh-overlay/
-├── main.js              # Electron 主进程（窗口 / 托盘 / token 轮询 / IPC / 自检）
+├── main.js              # Electron 主进程（窗口 / 托盘 / token 轮询 / IPC / 自检 / 自动拉起 dsh）
 ├── preload.js           # contextBridge 安全桥接（12+ 方法）
 ├── renderer/index.html  # 界面（两列卡片 / 设置 / 诊断 / 回收站 / 开屏）
 ├── package.json         # 工程与打包配置
-├── launcher/            # 自动拉起钩子插件（源码副本）
+├── launcher/            # 自动拉起钩子插件（源码副本，v1.1.1）
+├── install/             # 一键安装/卸载脚本
 ├── docs/                # 教程文档（安装 / 一键清单 / 部署）
 ├── 启动悬浮窗.cmd        # 一键启动脚本
 ├── start-overlay.cmd    # ASCII 启动脚本（跨设备）
@@ -232,12 +234,14 @@ npx electron-builder --win nsis portable
 
 | 现象 | 原因与解决 |
 | --- | --- |
+| 顶栏显示「缺少 dshmarket 插件」 | 未装 dshmarket：`dsh plugin --profile web add dshmarket` 后重启 dsh web |
 | 显示「未连接」/ 插件列表为空 | dsh 未运行：先 `dsh web`；或 token 日志路径异常（换 npm 全局目录需设环境变量） |
 | `dsh web` 报 EADDRINUSE（端口 3080 被占） | 旧 dsh 实例还在：托盘菜单 / 设置里「强制重启 dsh web」 |
 | 强制重启后浏览器没打开 | 旧版本行为；v0.1.33 起就绪后自动打开浏览器 |
+| 折叠后从任务栏唤回展开失效 | v0.1.37 已修复（restore/show 自动同步窗口状态）；更新到最新版 |
 | 打包 EBUSY | 悬浮窗运行中覆盖产物：先退出再打包 |
 | Electron 二进制下载卡死 | 设置 `ELECTRON_MIRROR` 加速 |
-| 悬浮窗没自动拉起 | 未装 launcher 插件（`dsh plugin list --profile web` 检查）；或悬浮窗不在默认位置（设 `DSH_OVERLAY_EXE`）；读日志 `%LOCALAPPDATA%\DSH插件控制台\launcher.log` 定位 |
+| 悬浮窗没自动拉起 | 未装 launcher 插件（`dsh plugin list --profile web` 检查，并读盘确认版本 1.1.1）；或悬浮窗不在默认位置（设 `DSH_OVERLAY_EXE`）；读日志 `%LOCALAPPDATA%\DSH插件控制台\launcher.log` 定位 |
 
 ---
 
@@ -245,6 +249,10 @@ npx electron-builder --win nsis portable
 
 | 版本 | 说明 |
 | --- | --- |
+| 0.1.37 | 修复折叠/任务栏唤回后展开失效（resize 防污染 + restore/show 状态同步）；安装指南同步最新版 |
+| 0.1.36 | 状态语义修正（404=缺 dshmarket / 401=需 token / 0=未运行）；userData 固定 `%LOCALAPPDATA%`；前置依赖 dshmarket 入指南 |
+| 0.1.35 | launcher v1.1.0：轮询 3080 就绪即拉起（修复 cordis4 ready 死代码）+ 注册表回退 |
+| 0.1.34 | 新电脑兼容修复：自动启动 dsh web + 免 token 连接 + 日志探测扩展 |
 | 0.1.33 | 强制重启增强：托盘菜单入口 + 重启后自动打开浏览器；逻辑重构共用 |
 | 0.1.32 | 开屏文案更新（右下角重启提示 + 强制重启指引） |
 | 0.1.31 | 开屏提示追加状态栏说明 |
