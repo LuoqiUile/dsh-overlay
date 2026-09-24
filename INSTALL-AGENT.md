@@ -102,6 +102,8 @@ dsh plugin --profile web add "file:$src\launcher"
 
 > 源码必须放 `%LOCALAPPDATA%\dsh-overlay-src`（不要放 %TEMP%）：`file:` 依赖会把该路径写进 lockfile，放 TEMP 被系统清理后，后续任何插件安装都会失败。
 > 验证：`dsh plugin list --profile web` 中出现 `dsh-overlay-launcher`。
+> ⚠️ `dsh plugin list` 对 `file:` 依赖只显示 spec 不显示版本，需**读盘确认版本**：
+> `(Get-Content "$env:LOCALAPPDATA\dsh-overlay-src\launcher\package.json" -Encoding UTF8 | ConvertFrom-Json).version` → 应为 `1.1.1`（旧版 1.0.x 缺注册表回退/日志文件，需重装）。
 
 > launcher（v1.1.0）会自动找到悬浮窗，搜索顺序：配置 exe → `DSH_OVERLAY_EXE` 环境变量 → **注册表 HKCU\Environment 的 DSH_OVERLAY_EXE（旧终端回退）** → `%ProgramFiles%\DSH插件控制台\DSH插件控制台.exe` → `%LOCALAPPDATA%\DSH插件控制台\DSH插件控制台.exe`（指南默认下载位置）→ 本机开发脚本。
 > 触发机制：launcher 不再依赖 cordis 生命周期事件（cordis 4 已移除 `ready`），改为**轮询 127.0.0.1:3080 端口就绪即拉起**（约 1.5s 间隔，60s 上限），dsh web 一就绪悬浮窗立即弹出，无 8 秒延迟。
@@ -116,7 +118,7 @@ dsh web
 验证清单：
 - [ ] `dsh web` 启动无 EADDRINUSE 报错（端口 3080 空闲）
 - [ ] 浏览器可打开 http://127.0.0.1:3080
-- [ ] **悬浮窗自动弹出**（launcher v1.1.0 轮询 3080 就绪后拉起；在启动 `dsh web` 的终端可见日志 `[dsh-overlay-launcher] 已拉起 DSH 插件控制台：<路径>`）
+- [ ] **悬浮窗自动弹出**（launcher v1.1.1 轮询 3080 就绪后拉起；日志双写：终端 + 文件 `%LOCALAPPDATA%\DSH插件控制台\launcher.log`，读法：`Get-Content "$env:LOCALAPPDATA\DSH插件控制台\launcher.log" -Encoding UTF8`）
 - [ ] `dsh plugin list --profile web` 含 dsh-overlay-launcher
 
 全部通过 → 安装成功。任一失败 → 按「排错」处理。
@@ -130,7 +132,7 @@ dsh web
 | 下载便携版失败 | 用 gh-proxy 镜像前缀重试 |
 | `dsh plugin add file:...` 报错 | 确认克隆目录完整（含 launcher/package.json）；重试一次 |
 | `dsh web` EADDRINUSE | 说明旧 dsh 在跑：`Get-NetTCPConnection -LocalPort 3080 -State Listen` 找到 PID → `taskkill /PID <PID> /T /F` → 重启 |
-| 悬浮窗未自动拉起 | 确认步骤 6 成功（`dsh plugin list --profile web`）；在启动终端看是否有 `[dsh-overlay-launcher]` 日志行（`已拉起…`=成功 / `未找到悬浮窗程序`=路径问题 / `60s 内 web 服务未就绪`=dsh 未起来）；确认 `DSH_OVERLAY_EXE` 或安装目录存在（launcher 已有注册表回退，无需担心旧终端）；仍失败可临时直接运行悬浮窗 exe 排查 |
+| 悬浮窗未自动拉起 | 确认步骤 6 成功（`dsh plugin list --profile web`）且 launcher 版本=1.1.1；读日志 `Get-Content "$env:LOCALAPPDATA\DSH插件控制台\launcher.log" -Encoding UTF8`（`已拉起…`=成功 / `未找到悬浮窗程序`=路径问题 / `60s 内 web 服务未就绪`=dsh 未起来）；确认 `DSH_OVERLAY_EXE` 或安装目录存在（launcher 已有注册表回退，无需担心旧终端）；仍失败可临时直接运行悬浮窗 exe 排查 |
 | 版本不满足报错 | 按错误提示升级 dsh：`npm install -g @deepseek-ai/dsh@latest` |
 
 ## 可选：插件与 API Key

@@ -120,6 +120,8 @@ npm start          # 或双击 启动悬浮窗.cmd
 dsh plugin --profile web add "file:路径\dsh-overlay\launcher"
 ```
 
+> launcher **v1.1.1** 机制：轮询 `127.0.0.1:3080` 端口就绪即拉起（不依赖 cordis 生命周期事件，兼容 cordis 3/4/5）；`DSH_OVERLAY_EXE` 支持环境变量 + 注册表（HKCU\Environment）双重回退；运行日志双写终端与 `%LOCALAPPDATA%\DSH插件控制台\launcher.log`（UTF-8，用 `Get-Content -Encoding UTF8` 读）。
+
 ---
 
 ## 🖥️ 使用说明
@@ -234,7 +236,7 @@ npx electron-builder --win nsis portable
 | 强制重启后浏览器没打开 | 旧版本行为；v0.1.33 起就绪后自动打开浏览器 |
 | 打包 EBUSY | 悬浮窗运行中覆盖产物：先退出再打包 |
 | Electron 二进制下载卡死 | 设置 `ELECTRON_MIRROR` 加速 |
-| 悬浮窗没自动拉起 | 未装 launcher 插件；或悬浮窗不在默认位置（设 `DSH_OVERLAY_EXE`） |
+| 悬浮窗没自动拉起 | 未装 launcher 插件（`dsh plugin list --profile web` 检查）；或悬浮窗不在默认位置（设 `DSH_OVERLAY_EXE`）；读日志 `%LOCALAPPDATA%\DSH插件控制台\launcher.log` 定位 |
 
 ---
 

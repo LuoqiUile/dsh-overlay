@@ -1,4 +1,4 @@
-// dsh-overlay-launcher v1.1.0
+// dsh-overlay-launcher v1.1.1
 // dsh 启动钩子：dsh web 服务就绪后自动拉起 DSH 插件控制台悬浮窗。
 // v1.1.0 变更：cordis 4 已移除 'ready' 生命周期事件（仅 internal/dispatch|plugin|status），
 // 原 ctx.on('ready') 是死代码（只靠 8s 兜底）。现改为轮询 127.0.0.1:3080 端口就绪后拉起，
@@ -7,18 +7,23 @@
 // 悬浮窗路径优先级：config.exe > 环境变量 DSH_OVERLAY_EXE > 注册表 DSH_OVERLAY_EXE > 安装包默认目录 > 便携版默认目录 > 本机开发脚本。
 // 悬浮窗自身有单实例锁：已在运行则新实例自动退出并聚焦原窗口，重复拉起无副作用。
 import { spawn, exec } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { existsSync, mkdirSync, appendFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import http from 'node:http';
 
 export default function (ctx, config) {
   const cfg = config || {};
 
+  const LOG_FILE = process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'DSH插件控制台', 'launcher.log') : null;
+  if (LOG_FILE) { try { mkdirSync(dirname(LOG_FILE), { recursive: true }); } catch (_) {} }
   const safeLog = (fn, msg) => {
+    const line = '[dsh-overlay-launcher] ' + msg;
     try {
-      if (ctx && ctx.logger && ctx.logger[fn]) ctx.logger[fn]('[dsh-overlay-launcher] ' + msg);
-      else console[fn === 'warn' ? 'warn' : 'log']('[dsh-overlay-launcher] ' + msg);
+      if (ctx && ctx.logger && ctx.logger[fn]) ctx.logger[fn](line);
+      else console[fn === 'warn' ? 'warn' : 'log'](line);
     } catch (_) { /* ignore */ }
+    // 文件日志：固定路径（%LOCALAPPDATA%），不受便携版随机 temp 解包影响，供智能体/用户排错
+    if (LOG_FILE) { try { appendFileSync(LOG_FILE, new Date().toISOString() + ' ' + fn + ' ' + line + '\n'); } catch (_) {} }
   };
 
   let fired = false;
