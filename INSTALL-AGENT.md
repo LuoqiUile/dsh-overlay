@@ -83,12 +83,12 @@ git config --global url."https://gh-proxy.com/https://github.com/".insteadOf "ht
 ```powershell
 $dest = Join-Path $env:LOCALAPPDATA 'DSH插件控制台'
 New-Item -ItemType Directory -Force $dest | Out-Null
-Invoke-WebRequest -Uri 'https://github.com/LuoqiUile/dsh-overlay/releases/download/v0.1.33/DSH.-0.1.33-x64-portable.exe' -OutFile (Join-Path $dest 'DSH插件控制台.exe')
+Invoke-WebRequest -Uri 'https://github.com/LuoqiUile/dsh-overlay/releases/download/v0.1.35/DSH.-0.1.35-x64-portable.exe' -OutFile (Join-Path $dest 'DSH插件控制台.exe')
 ```
 
-> 资产名注意：GitHub Release 将中文名显示为 `DSH.-0.1.33-x64-portable.exe`（真实资产名，照此填写才不 404）。
+> 资产名注意：GitHub Release 将中文名显示为 `DSH.-0.1.35-x64-portable.exe`（真实资产名，照此填写才不 404；若装新版，请用 releases/latest 对应资产名 `DSH.-<版本>-x64-portable.exe`）。
 > 若网络无法直连 GitHub Release（国内常见），改用镜像前缀：
-> `https://gh-proxy.com/https://github.com/LuoqiUile/dsh-overlay/releases/download/v0.1.33/DSH.-0.1.33-x64-portable.exe`
+> `https://gh-proxy.com/https://github.com/LuoqiUile/dsh-overlay/releases/download/v0.1.35/DSH.-0.1.35-x64-portable.exe`
 > 下载后可选校验完整性：`Get-FileHash <路径> -Algorithm SHA256` 与 Release 页官方 digest 比对。
 
 ## 步骤 6：安装自动拉起钩子（launcher）
@@ -103,8 +103,9 @@ dsh plugin --profile web add "file:$src\launcher"
 > 源码必须放 `%LOCALAPPDATA%\dsh-overlay-src`（不要放 %TEMP%）：`file:` 依赖会把该路径写进 lockfile，放 TEMP 被系统清理后，后续任何插件安装都会失败。
 > 验证：`dsh plugin list --profile web` 中出现 `dsh-overlay-launcher`。
 
-> launcher 会自动找到悬浮窗，搜索顺序：配置 exe → `DSH_OVERLAY_EXE` 环境变量 → `%ProgramFiles%\DSH插件控制台\DSH插件控制台.exe` → `%LOCALAPPDATA%\DSH插件控制台\DSH插件控制台.exe`（指南默认下载位置）→ 本机开发脚本。
-> 若放在其他位置，设环境变量：`[Environment]::SetEnvironmentVariable('DSH_OVERLAY_EXE','<悬浮窗exe路径>','User')`
+> launcher（v1.1.0）会自动找到悬浮窗，搜索顺序：配置 exe → `DSH_OVERLAY_EXE` 环境变量 → **注册表 HKCU\Environment 的 DSH_OVERLAY_EXE（旧终端回退）** → `%ProgramFiles%\DSH插件控制台\DSH插件控制台.exe` → `%LOCALAPPDATA%\DSH插件控制台\DSH插件控制台.exe`（指南默认下载位置）→ 本机开发脚本。
+> 触发机制：launcher 不再依赖 cordis 生命周期事件（cordis 4 已移除 `ready`），改为**轮询 127.0.0.1:3080 端口就绪即拉起**（约 1.5s 间隔，60s 上限），dsh web 一就绪悬浮窗立即弹出，无 8 秒延迟。
+> 若放在其他位置，设环境变量：`[Environment]::SetEnvironmentVariable('DSH_OVERLAY_EXE','<悬浮窗exe路径>','User')`（新设变量需**重开终端**再启动 dsh；launcher 已有注册表回退，旧终端也可用）
 
 ## 步骤 7：整体验证
 
@@ -115,7 +116,7 @@ dsh web
 验证清单：
 - [ ] `dsh web` 启动无 EADDRINUSE 报错（端口 3080 空闲）
 - [ ] 浏览器可打开 http://127.0.0.1:3080
-- [ ] 悬浮窗自动弹出（launcher 拉起），两列插件卡片正常
+- [ ] **悬浮窗自动弹出**（launcher v1.1.0 轮询 3080 就绪后拉起；在启动 `dsh web` 的终端可见日志 `[dsh-overlay-launcher] 已拉起 DSH 插件控制台：<路径>`）
 - [ ] `dsh plugin list --profile web` 含 dsh-overlay-launcher
 
 全部通过 → 安装成功。任一失败 → 按「排错」处理。
@@ -129,7 +130,7 @@ dsh web
 | 下载便携版失败 | 用 gh-proxy 镜像前缀重试 |
 | `dsh plugin add file:...` 报错 | 确认克隆目录完整（含 launcher/package.json）；重试一次 |
 | `dsh web` EADDRINUSE | 说明旧 dsh 在跑：`Get-NetTCPConnection -LocalPort 3080 -State Listen` 找到 PID → `taskkill /PID <PID> /T /F` → 重启 |
-| 悬浮窗未自动拉起 | 确认步骤 6 成功（`dsh plugin list --profile web`）；检查 `DSH_OVERLAY_EXE` 环境变量指向真实 exe；新设的环境变量需重启 dsh 生效 |
+| 悬浮窗未自动拉起 | 确认步骤 6 成功（`dsh plugin list --profile web`）；在启动终端看是否有 `[dsh-overlay-launcher]` 日志行（`已拉起…`=成功 / `未找到悬浮窗程序`=路径问题 / `60s 内 web 服务未就绪`=dsh 未起来）；确认 `DSH_OVERLAY_EXE` 或安装目录存在（launcher 已有注册表回退，无需担心旧终端）；仍失败可临时直接运行悬浮窗 exe 排查 |
 | 版本不满足报错 | 按错误提示升级 dsh：`npm install -g @deepseek-ai/dsh@latest` |
 
 ## 可选：插件与 API Key

@@ -2,13 +2,13 @@
 
 > DeepSeek Harness 插件控制台悬浮窗 —— 随 dsh 启动，全部插件一目了然、随手开关。
 
-![version](https://img.shields.io/badge/version-0.1.33-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-lightgrey) ![license](https://img.shields.io/badge/license-MIT-green)
+![version](https://img.shields.io/badge/version-0.1.35-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-lightgrey) ![license](https://img.shields.io/badge/license-MIT-green)
 
 **DSH 插件控制台**是一个基于 Electron 的 Windows 桌面悬浮窗应用，专为 [DeepSeek Harness（dsh）](https://www.npmjs.com/package/@deepseek-ai/dsh) 用户打造。它以无边框透明悬浮窗的形式常驻桌面，**两列实时罗列 dsh 已安装的全部插件**，每张卡片包含中文名、版本、状态与独立开关，并提供设置、状态诊断、回收站、强制重启等管理能力。
 
 配合本仓库内置的 `launcher/` 启动钩子，`dsh web` 一启动，悬浮窗自动出现。
 
-> **📦 最新安装包（v0.1.33）**：GitHub Releases → [https://github.com/LuoqiUile/dsh-overlay/releases](https://github.com/LuoqiUile/dsh-overlay/releases)（setup 安装包 + portable 便携版）
+> **📦 最新安装包（v0.1.35）**：GitHub Releases → [https://github.com/LuoqiUile/dsh-overlay/releases](https://github.com/LuoqiUile/dsh-overlay/releases)（setup 安装包 + portable 便携版；资产名为 `DSH.-0.1.35-x64-setup.exe` / `DSH.-0.1.35-x64-portable.exe`）
 
 ## 📁 项目结构（统一仓库）
 
