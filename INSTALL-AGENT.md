@@ -12,6 +12,14 @@
 严格按该文件步骤执行，每步验证结果；需要安装授权时向用户确认；完成后汇报结果。
 ```
 
+**卸载（移除本插件）**：发这段话给智能体即可：
+
+```
+请卸载我电脑上的「DSH 插件控制台」。
+先读取 https://raw.githubusercontent.com/LuoqiUile/dsh-overlay/master/INSTALL-AGENT.md
+按其中「卸载」章节的步骤执行，需要删除授权时向用户确认，完成后汇报结果。
+```
+
 ---
 
 ## 执行环境
@@ -124,6 +132,28 @@ dsh web
 ## 可选：插件与 API Key
 
 用户要求装插件时，执行 `dsh plugin --profile web add "git+https://github.com/<作者>/<仓库>"`（清单见仓库 docs/ 目录）；涉及 API Key 时**先向用户索要**，用 `setx` 写入用户级环境变量，不要写进任何文档。
+
+## 卸载（可选，移除本插件）
+
+用户要求卸载时，按以下步骤执行（**先向用户确认**是否同时删除 dsh / Node / 插件数据）：
+
+```powershell
+# 1. 移除自动拉起钩子
+dsh plugin uninstall dsh-overlay-launcher
+
+# 2. 删除悬浮窗便携版目录
+$dest = Join-Path $env:LOCALAPPDATA 'DSH插件控制台'
+if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
+
+# 3. 清理环境变量（若之前设过）
+[Environment]::SetEnvironmentVariable('DSH_OVERLAY_EXE', $null, 'User')
+
+# 4. （可选，需用户确认）卸载 dsh 本体
+# npm uninstall -g @deepseek-ai/dsh
+```
+
+> 悬浮窗与 launcher 的配置数据在 `%APPDATA%\DSH插件控制台\`（删除目录即清空设置）。
+> 若曾用安装包（setup）安装，还需在「设置 → 应用」中卸载该程序。
 
 ## 完成汇报
 

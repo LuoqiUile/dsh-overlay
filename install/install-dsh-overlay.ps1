@@ -1,6 +1,8 @@
-# DSH 插件控制台 一键自动安装脚本
-# 用法：powershell -ExecutionPolicy Bypass -File install-dsh-overlay.ps1
+# DSH 插件控制台 一键自动安装/卸载脚本
+# 安装：powershell -ExecutionPolicy Bypass -File install-dsh-overlay.ps1
+# 卸载：powershell -ExecutionPolicy Bypass -File install-dsh-overlay.ps1 -Uninstall
 # 幂等：已安装的步骤自动跳过；输出每步结果；失败不中断（汇总报告）
+param([switch]$Uninstall)
 $ErrorActionPreference = 'Continue'
 $REPO = 'LuoqiUile/dsh-overlay'
 $VER = 'v0.1.33'
@@ -16,6 +18,29 @@ function Step($name, [scriptblock]$body) {
 }
 
 Write-Host '=== DSH 插件控制台 自动安装 ===' -ForegroundColor Green
+
+# 0. 卸载模式
+if ($Uninstall) {
+  Write-Host '=== 卸载模式 ===' -ForegroundColor Yellow
+  Step '移除 launcher 钩子' {
+    dsh plugin uninstall dsh-overlay-launcher
+    Write-Host '  launcher 已移除（若未安装会提示，属正常）'
+  }
+  Step '删除悬浮窗目录' {
+    if (Test-Path $DEST) { Remove-Item -Recurse -Force $DEST; Write-Host "  已删除: $DEST" }
+    else { Write-Host '  目录不存在，跳过' }
+  }
+  Step '清理 DSH_OVERLAY_EXE 环境变量' {
+    [Environment]::SetEnvironmentVariable('DSH_OVERLAY_EXE', $null, 'User')
+    Write-Host '  已清理'
+  }
+  Write-Host ''
+  Write-Host '=== 卸载完成 ===' -ForegroundColor Green
+  Write-Host '提示：若用安装包安装过，还需在 设置→应用 中卸载「DSH插件控制台」；'
+  Write-Host '      dsh 本体与 Node.js 未删除（如需一并卸载请手动执行 npm uninstall -g @deepseek-ai/dsh）。'
+  $report | ForEach-Object { Write-Host "  $_" }
+  return
+}
 
 # 1. Node.js
 Step 'Node.js 检测' {
